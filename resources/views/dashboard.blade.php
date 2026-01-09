@@ -1,0 +1,1632 @@
+@extends('layouts.app')
+
+@section('title', 'Tableau de bord')
+
+@section('content')
+    <div class="dashboard-header">
+        <h2>Tableau de bord</h2>
+        <div class="dashboard-actions">
+            <form action="{{ route('dashboard.generate-report') }}" method="GET" class="report-form">
+                <select name="client_id" class="client-select">
+                    <option value="all">Tous les clients</option>
+                    @foreach(\App\Models\Client::orderBy('nom_entreprise')->get() as $client)
+                        <option value="{{ $client->id }}">{{ $client->nom_entreprise }}</option>
+                    @endforeach
+                </select>
+                <button type="submit" class="btn btn-primary report-btn">
+                    <span class="btn-icon">📄</span>
+                    <span class="btn-text">Générer rapport</span>
+                </button>
+            </form>
+            <a href="{{ route('planning-comparison.index') }}" class="btn btn-primary comparison-btn">
+                <span class="btn-icon">📊</span>
+                <span class="btn-text">Comparer</span>
+            </a>
+        </div>
+    </div>
+    
+    <!-- Alertes globales -->
+    <div class="dashboard-alerts">
+        @if($overdueShootings->count() > 0 || $overduePublications->count() > 0)
+            <div class="alert-component alert-danger">
+                <div class="alert-icon-wrapper">
+                    <span class="alert-icon">🚨</span>
+                </div>
+                <div class="alert-content-wrapper">
+                    <div class="alert-header">
+                        <strong class="alert-title">Événements en retard</strong>
+                        <button type="button" class="alert-close" onclick="this.closest('.alert-component').remove()" aria-label="Fermer">×</button>
+                    </div>
+                    <div class="alert-items">
+                        @foreach($overdueShootings as $shooting)
+                            <div class="alert-item">
+                                <span class="item-icon">📹</span>
+                                <span class="item-text">Tournage du {{ $shooting->date->format('d/m/Y') }} - {{ $shooting->client->nom_entreprise }}</span>
+                                <a href="{{ route('shootings.show', $shooting) }}" class="item-link">Voir</a>
+                            </div>
+                        @endforeach
+                        @foreach($overduePublications as $publication)
+                            <div class="alert-item">
+                                <span class="item-icon">📢</span>
+                                <span class="item-text">Publication du {{ $publication->date->format('d/m/Y') }} - {{ $publication->client->nom_entreprise }}</span>
+                                <a href="{{ route('publications.show', $publication) }}" class="item-link">Voir</a>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+            </div>
+        @endif
+        
+        @if($upcomingShootings->count() > 0 || $upcomingPublications->count() > 0)
+            <div class="alert-component alert-warning">
+                <div class="alert-icon-wrapper">
+                    <span class="alert-icon">⏰</span>
+                </div>
+                <div class="alert-content-wrapper">
+                    <div class="alert-header">
+                        <strong class="alert-title">Événements à venir (dans 3 jours)</strong>
+                        <button type="button" class="alert-close" onclick="this.closest('.alert-component').remove()" aria-label="Fermer">×</button>
+                    </div>
+                    <div class="alert-items">
+                        @foreach($upcomingShootings as $shooting)
+                            <div class="alert-item">
+                                <span class="item-icon">📹</span>
+                                <span class="item-text">Tournage du {{ $shooting->date->format('d/m/Y') }} - {{ $shooting->client->nom_entreprise }}</span>
+                                <a href="{{ route('shootings.show', $shooting) }}" class="item-link">Voir</a>
+                            </div>
+                        @endforeach
+                        @foreach($upcomingPublications as $publication)
+                            <div class="alert-item">
+                                <span class="item-icon">📢</span>
+                                <span class="item-text">Publication du {{ $publication->date->format('d/m/Y') }} - {{ $publication->client->nom_entreprise }}</span>
+                                <a href="{{ route('publications.show', $publication) }}" class="item-link">Voir</a>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+            </div>
+        @endif
+    </div>
+    
+    <style>
+        .dashboard-alerts {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            margin-bottom: 2rem;
+        }
+        
+        .alert-component {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+            padding: 0.875rem 1rem;
+            border-radius: 8px;
+            border: 1px solid;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            transition: all 0.2s ease;
+        }
+        
+        .alert-component:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+            transform: translateY(-1px);
+        }
+        
+        .alert-component.alert-danger {
+            background: #fff5f5;
+            border-color: #dc3545;
+        }
+        
+        .alert-component.alert-warning {
+            background: #fffbf0;
+            border-color: #ffc107;
+        }
+        
+        .alert-icon-wrapper {
+            flex-shrink: 0;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+        }
+        
+        .alert-component.alert-danger .alert-icon-wrapper {
+            background: #dc3545;
+        }
+        
+        .alert-component.alert-warning .alert-icon-wrapper {
+            background: #ffc107;
+        }
+        
+        .alert-icon {
+            font-size: 1.125rem;
+            line-height: 1;
+        }
+        
+        .alert-content-wrapper {
+            flex: 1;
+            min-width: 0;
+        }
+        
+        .alert-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 0.625rem;
+        }
+        
+        .alert-title {
+            font-size: 0.875rem;
+            font-weight: 700;
+            margin: 0;
+        }
+        
+        .alert-component.alert-danger .alert-title {
+            color: #dc3545;
+        }
+        
+        .alert-component.alert-warning .alert-title {
+            color: #856404;
+        }
+        
+        .alert-close {
+            background: none;
+            border: none;
+            font-size: 1.25rem;
+            line-height: 1;
+            cursor: pointer;
+            padding: 0;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            transition: all 0.2s;
+            opacity: 0.6;
+        }
+        
+        .alert-component.alert-danger .alert-close {
+            color: #dc3545;
+        }
+        
+        .alert-component.alert-warning .alert-close {
+            color: #856404;
+        }
+        
+        .alert-close:hover {
+            opacity: 1;
+            background: rgba(0,0,0,0.05);
+        }
+        
+        .alert-items {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        
+        .alert-item {
+            display: flex;
+            align-items: center;
+            gap: 0.625rem;
+            padding: 0.5rem 0.75rem;
+            background: rgba(255,255,255,0.8);
+            border-radius: 6px;
+            border-left: 3px solid;
+            font-size: 0.8125rem;
+            transition: all 0.2s;
+        }
+        
+        .alert-component.alert-danger .alert-item {
+            border-left-color: #dc3545;
+        }
+        
+        .alert-component.alert-warning .alert-item {
+            border-left-color: #ffc107;
+        }
+        
+        .alert-item:hover {
+            background: rgba(255,255,255,1);
+            transform: translateX(2px);
+        }
+        
+        .item-icon {
+            font-size: 1rem;
+            flex-shrink: 0;
+        }
+        
+        .item-text {
+            flex: 1;
+            color: #303030;
+            line-height: 1.4;
+        }
+        
+        .item-link {
+            padding: 0.375rem 0.75rem;
+            background: #FF6A3A;
+            color: #ffffff;
+            text-decoration: none;
+            border-radius: 4px;
+            font-weight: 600;
+            font-size: 0.75rem;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        
+        .item-link:hover {
+            background: #e55a2a;
+            transform: scale(1.05);
+        }
+        
+        @media (max-width: 768px) {
+            .alert-component {
+                padding: 0.75rem;
+                gap: 0.625rem;
+            }
+            
+            .alert-icon-wrapper {
+                width: 28px;
+                height: 28px;
+            }
+            
+            .alert-icon {
+                font-size: 1rem;
+            }
+            
+            .alert-item {
+                flex-wrap: wrap;
+                gap: 0.5rem;
+            }
+            
+            .item-link {
+                width: 100%;
+                text-align: center;
+            }
+        }
+        
+        /* Dashboard Header Responsive */
+        .dashboard-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+        
+        .dashboard-header h2 {
+            color: #303030;
+            margin: 0;
+            font-size: 1.75rem;
+        }
+        
+        .dashboard-actions {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        
+        .report-form {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        .client-select {
+            padding: 0.5rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            min-width: 150px;
+        }
+        
+        .report-btn,
+        .comparison-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            white-space: nowrap;
+            padding: 0.5rem 1rem;
+        }
+        
+        .btn-icon {
+            font-size: 1.1rem;
+            flex-shrink: 0;
+        }
+        
+        .btn-text {
+            flex-shrink: 0;
+        }
+        
+        /* Calendar Header Responsive */
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+        
+        .calendar-header h3 {
+            margin: 0;
+            font-size: 1.5rem;
+        }
+        
+        .calendar-nav {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        .calendar-nav .btn {
+            padding: 0.5rem 1rem;
+            white-space: nowrap;
+        }
+        
+        /* Calendar Form Responsive */
+        .calendar-form {
+            display: flex;
+            gap: 1rem;
+            align-items: end;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+        }
+        
+        .calendar-form .form-group {
+            flex: 1;
+            min-width: 120px;
+        }
+        
+        /* Calendar Table Responsive */
+        .calendar-wrapper {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        
+        .calendar-table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 800px;
+        }
+        
+        /* Stats Grid Responsive */
+        @media (max-width: 768px) {
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        /* Events Lists Responsive */
+        .events-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+        }
+        
+        .events-grid .card table {
+            width: 100%;
+            display: block;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        
+        .events-grid .card table thead,
+        .events-grid .card table tbody,
+        .events-grid .card table tr {
+            display: table;
+            width: 100%;
+            table-layout: fixed;
+        }
+        
+        /* Calendar Legend Responsive */
+        .calendar-legend {
+            margin-top: 1rem;
+            padding: 1rem;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+        }
+        
+        .calendar-legend h4 {
+            margin-bottom: 0.5rem;
+            font-size: 1rem;
+        }
+        
+        .legend-items {
+            display: flex;
+            gap: 2rem;
+            flex-wrap: wrap;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+        }
+        
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 3px;
+            flex-shrink: 0;
+        }
+        
+        @media (max-width: 768px) {
+            .events-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .dashboard-header {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .dashboard-header h2 {
+                font-size: 1.5rem;
+                text-align: center;
+            }
+            
+            .dashboard-actions {
+                flex-direction: column;
+                width: 100%;
+            }
+            
+            .report-form {
+                width: 100%;
+                flex-direction: column;
+            }
+            
+            .client-select {
+                width: 100%;
+            }
+            
+            .report-btn,
+            .comparison-btn {
+                width: 100%;
+                justify-content: center;
+            }
+            
+            .calendar-header {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .calendar-header h3 {
+                font-size: 1.25rem;
+                text-align: center;
+            }
+            
+            .calendar-nav {
+                justify-content: center;
+                width: 100%;
+            }
+            
+            .calendar-form {
+                flex-direction: column;
+            }
+            
+            .calendar-form .form-group {
+                width: 100%;
+            }
+            
+            .calendar-form button {
+                width: 100%;
+            }
+            
+            .legend-items {
+                gap: 1rem;
+            }
+            
+            .legend-item {
+                font-size: 0.85rem;
+            }
+            
+            .legend-color {
+                width: 18px;
+                height: 18px;
+            }
+            
+            .events-grid .card table {
+                min-width: 100%;
+            }
+            
+            .events-grid .card table th,
+            .events-grid .card table td {
+                padding: 0.5rem;
+                font-size: 0.85rem;
+            }
+            
+            .events-grid .card table th:last-child,
+            .events-grid .card table td:last-child {
+                min-width: 80px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .dashboard-header h2 {
+                font-size: 1.25rem;
+            }
+            
+            .calendar-header h3 {
+                font-size: 1.1rem;
+            }
+            
+            .report-btn .btn-text,
+            .comparison-btn .btn-text {
+                font-size: 0.85rem;
+            }
+            
+            .calendar-nav .btn {
+                padding: 0.4rem 0.75rem;
+                font-size: 0.85rem;
+            }
+            
+            .legend-items {
+                flex-direction: column;
+                gap: 0.75rem;
+            }
+            
+            .events-grid .card table th,
+            .events-grid .card table td {
+                padding: 0.4rem;
+                font-size: 0.8rem;
+            }
+        }
+        
+        /* Modern Calendar Form Styles */
+        .calendar-form-modern {
+            padding: 1.5rem;
+            background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+            border-radius: 12px;
+            margin-bottom: 1.5rem;
+            border: 1px solid #e9ecef;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        }
+        
+        .calendar-form-wrapper {
+            display: flex;
+            align-items: flex-end;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+        
+        .calendar-form-field {
+            flex: 1;
+            min-width: 150px;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        
+        .calendar-form-label {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #495057;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .calendar-form-icon {
+            color: #FF6A3A;
+            flex-shrink: 0;
+        }
+        
+        .calendar-select-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+        
+        .calendar-select {
+            width: 100%;
+            padding: 0.75rem 2.5rem 0.75rem 1rem;
+            font-size: 1rem;
+            font-weight: 500;
+            color: #303030;
+            background: white;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            appearance: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            outline: none;
+        }
+        
+        .calendar-select:hover {
+            border-color: #FF6A3A;
+            box-shadow: 0 0 0 3px rgba(255, 106, 58, 0.1);
+        }
+        
+        .calendar-select:focus {
+            border-color: #FF6A3A;
+            box-shadow: 0 0 0 3px rgba(255, 106, 58, 0.15);
+        }
+        
+        .calendar-select-arrow {
+            position: absolute;
+            right: 0.75rem;
+            top: 50%;
+            transform: translateY(-50%);
+            pointer-events: none;
+            color: #6c757d;
+            transition: transform 0.2s ease;
+        }
+        
+        .calendar-select-wrapper:hover .calendar-select-arrow {
+            color: #FF6A3A;
+        }
+        
+        .calendar-select:focus + .calendar-select-arrow {
+            color: #FF6A3A;
+            transform: translateY(-50%) rotate(180deg);
+        }
+        
+        .calendar-nav-btn {
+            padding: 0.5rem 1rem;
+            white-space: nowrap;
+        }
+        
+        @media (max-width: 768px) {
+            .calendar-form-modern {
+                padding: 1rem;
+            }
+            
+            .calendar-form-wrapper {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .calendar-form-field {
+                min-width: 100%;
+            }
+        }
+    </style>
+    
+    <div class="stats-grid">
+        <div class="stat-card">
+            <h3>Total Clients</h3>
+            <div class="value">{{ $stats['clients_count'] }}</div>
+        </div>
+        
+        <div class="stat-card">
+            <h3>Tournages ce mois</h3>
+            <div class="value">{{ $stats['shootings_this_month'] }}</div>
+        </div>
+        
+        <div class="stat-card">
+            <h3>Publications ce mois</h3>
+            <div class="value">{{ $stats['publications_this_month'] }}</div>
+        </div>
+    </div>
+    
+    <!-- Calendrier combiné -->
+    <div class="card" style="margin-bottom: 2rem;">
+        <div class="calendar-header">
+            <h3>
+                @php
+                    $months = ['', 'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
+                @endphp
+                Planning global - {{ $months[$month] }} {{ $year }}
+            </h3>
+            <div class="calendar-nav">
+                <button type="button" onclick="navigateMonth(-1)" class="btn btn-secondary calendar-nav-btn">←</button>
+                <button type="button" onclick="navigateMonth(1)" class="btn btn-secondary calendar-nav-btn">→</button>
+                <a href="{{ route('dashboard.export-calendar', ['month' => $month, 'year' => $year]) }}" class="btn btn-primary">
+                    <span class="btn-icon">📊</span>
+                    <span class="btn-text">Exporter</span>
+                </a>
+            </div>
+        </div>
+        
+        <form class="calendar-form-modern" id="calendarForm">
+            <div class="calendar-form-wrapper">
+                <div class="calendar-form-field">
+                    <label for="month" class="calendar-form-label">
+                        <svg class="calendar-form-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                            <line x1="16" y1="2" x2="16" y2="6"></line>
+                            <line x1="8" y1="2" x2="8" y2="6"></line>
+                            <line x1="3" y1="10" x2="21" y2="10"></line>
+                        </svg>
+                        <span>Mois</span>
+                    </label>
+                    <div class="calendar-select-wrapper">
+                        <select id="month" name="month" class="calendar-select">
+                            @for($i = 1; $i <= 12; $i++)
+                                <option value="{{ $i }}" {{ $month == $i ? 'selected' : '' }}>{{ $months[$i] }}</option>
+                            @endfor
+                        </select>
+                        <svg class="calendar-select-arrow" width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M2 4l4 4 4-4"></path>
+                        </svg>
+                    </div>
+                </div>
+                <div class="calendar-form-field">
+                    <label for="year" class="calendar-form-label">
+                        <svg class="calendar-form-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <polyline points="12 6 12 12 16 14"></polyline>
+                        </svg>
+                        <span>Année</span>
+                    </label>
+                    <div class="calendar-select-wrapper">
+                        <select id="year" name="year" class="calendar-select">
+                            @for($i = 2020; $i <= 2030; $i++)
+                                <option value="{{ $i }}" {{ $year == $i ? 'selected' : '' }}>{{ $i }}</option>
+                            @endfor
+                        </select>
+                        <svg class="calendar-select-arrow" width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M2 4l4 4 4-4"></path>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+        </form>
+        
+        <div class="calendar-wrapper" id="calendarWrapper">
+            <div id="calendarLoading" style="display: none; text-align: center; padding: 2rem;">
+                <p>Chargement...</p>
+            </div>
+            <div id="calendarContent">
+        <table class="calendar-table">
+            <thead>
+                <tr>
+                    <th style="padding: 0.75rem; background-color: #FF6A3A; color: white; border: 1px solid #ddd; text-align: center; width: 14.28%;">Lundi</th>
+                    <th style="padding: 0.75rem; background-color: #FF6A3A; color: white; border: 1px solid #ddd; text-align: center; width: 14.28%;">Mardi</th>
+                    <th style="padding: 0.75rem; background-color: #FF6A3A; color: white; border: 1px solid #ddd; text-align: center; width: 14.28%;">Mercredi</th>
+                    <th style="padding: 0.75rem; background-color: #FF6A3A; color: white; border: 1px solid #ddd; text-align: center; width: 14.28%;">Jeudi</th>
+                    <th style="padding: 0.75rem; background-color: #FF6A3A; color: white; border: 1px solid #ddd; text-align: center; width: 14.28%;">Vendredi</th>
+                    <th style="padding: 0.75rem; background-color: #9e9e9e; color: white; border: 1px solid #ddd; text-align: center; width: 14.28%; opacity: 0.7;">Samedi</th>
+                    <th style="padding: 0.75rem; background-color: #9e9e9e; color: white; border: 1px solid #ddd; text-align: center; width: 14.28%; opacity: 0.7;">Dimanche</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach($calendar as $week)
+                    <tr>
+                        @foreach($week as $day)
+                            @php
+                                $days = ['Monday' => 'lundi', 'Tuesday' => 'mardi', 'Wednesday' => 'mercredi', 'Thursday' => 'jeudi', 'Friday' => 'vendredi', 'Saturday' => 'samedi', 'Sunday' => 'dimanche'];
+                                $dayOfWeek = $days[$day['date']->format('l')] ?? strtolower($day['date']->format('l'));
+                                $isWeekend = in_array($day['date']->format('l'), ['Saturday', 'Sunday']);
+                            @endphp
+                            <td class="calendar-day-cell" 
+                                data-date="{{ $day['date']->format('Y-m-d') }}"
+                                data-current-month="{{ $day['isCurrentMonth'] ? '1' : '0' }}"
+                                style="padding: 0.5rem; border: 1px solid #ddd; vertical-align: top; height: 150px; background-color: {{ $isWeekend ? '#e9e9e9' : ($day['isCurrentMonth'] ? ($day['hasWarnings'] ? '#fff3cd' : '#fff') : '#f5f5f5') }}; {{ $isWeekend ? 'opacity: 0.7;' : '' }}; cursor: pointer; position: relative;">
+                                <div style="font-weight: bold; margin-bottom: 0.5rem; color: {{ $day['isCurrentMonth'] ? '#303030' : '#999' }}; display: flex; align-items: center; gap: 0.5rem;">
+                                    <span>{{ $day['date']->day }}</span>
+                                    @if($day['hasWarnings'])
+                                        <span class="badge badge-warning" style="font-size: 0.7rem;">⚠️</span>
+                                    @endif
+                                    <button class="calendar-day-add-btn" onclick="event.stopPropagation(); openDateModal('{{ $day['date']->format('Y-m-d') }}');" title="Gérer les événements" style="margin-left: auto; background: #FF6A3A; color: white; border: none; border-radius: 50%; width: 24px; height: 24px; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; opacity: 0.7; transition: opacity 0.2s;">+</button>
+                                </div>
+                                <div class="calendar-day-events" style="max-height: 110px; overflow-y: auto;" onclick="event.stopPropagation();">
+                                    <!-- Tournages -->
+                                    @foreach($day['shootings'] as $shooting)
+                                        @php
+                                            $bgColor = '#FF6A3A';
+                                            $borderColor = '#e55a2a';
+                                            $icon = '📹';
+                                            if ($shooting->status === 'cancelled') {
+                                                $bgColor = '#6c757d';
+                                                $borderColor = '#5a6268';
+                                                $icon = '❌';
+                                            } elseif ($shooting->isCompleted()) {
+                                                $bgColor = '#28a745';
+                                                $borderColor = '#1e7e34';
+                                                $icon = '✅';
+                                            } elseif ($shooting->isOverdue()) {
+                                                $bgColor = '#dc3545';
+                                                $borderColor = '#c82333';
+                                                $icon = '🚨';
+                                            } elseif ($shooting->isUpcoming()) {
+                                                $bgColor = '#ffc107';
+                                                $borderColor = '#ff9800';
+                                                $icon = '⏰';
+                                            }
+                                        @endphp
+                                        <div class="calendar-event" 
+                                             data-event-type="shooting"
+                                             data-event-id="{{ $shooting->id }}"
+                                             style="background-color: {{ $bgColor }}; color: white; padding: 0.25rem 0.5rem; margin-bottom: 0.25rem; border-radius: 3px; font-size: 0.7rem; cursor: pointer; border-left: 3px solid {{ $borderColor }};" 
+                                             onclick="event.stopPropagation(); window.location.href='{{ route('shootings.show', $shooting) }}'"
+                                             title="Tournage - {{ $shooting->client->nom_entreprise }} - {{ $shooting->status === 'completed' ? 'Complété' : ($shooting->isOverdue() ? 'En retard' : ($shooting->isUpcoming() ? 'Approche' : 'En attente')) }}">
+                                            <strong>{{ $icon }} {{ $shooting->client->nom_entreprise }}</strong>
+                                            @if($shooting->contentIdeas->count() > 0)
+                                                <br><small>{{ $shooting->contentIdeas->count() }} idée(s)</small>
+                                            @endif
+                                        </div>
+                                    @endforeach
+                                    
+                                    <!-- Publications -->
+                                    @foreach($day['publications'] as $publication)
+                                        @php
+                                            $pubDayOfWeek = $days[\Carbon\Carbon::parse($publication->date)->format('l')] ?? '';
+                                            $hasWarning = $publication->client->isDayNotRecommended($pubDayOfWeek);
+                                            
+                                            $bgColor = '#28a745';
+                                            $borderColor = '#1e7e34';
+                                            $icon = '📢';
+                                            $textColor = 'white';
+                                            
+                                            if ($publication->status === 'cancelled') {
+                                                $bgColor = '#6c757d';
+                                                $borderColor = '#5a6268';
+                                                $icon = '❌';
+                                            } elseif ($publication->isCompleted()) {
+                                                $bgColor = '#28a745';
+                                                $borderColor = '#1e7e34';
+                                                $icon = '✅';
+                                            } elseif ($publication->isOverdue()) {
+                                                $bgColor = '#dc3545';
+                                                $borderColor = '#c82333';
+                                                $icon = '🚨';
+                                            } elseif ($publication->isUpcoming()) {
+                                                $bgColor = '#ffc107';
+                                                $borderColor = '#ff9800';
+                                                $icon = '⏰';
+                                                $textColor = '#000';
+                                            } elseif ($hasWarning) {
+                                                $bgColor = '#ffc107';
+                                                $borderColor = '#ff9800';
+                                                $textColor = '#000';
+                                            }
+                                        @endphp
+                                        <div class="calendar-event" 
+                                             data-event-type="publication"
+                                             data-event-id="{{ $publication->id }}"
+                                             style="background-color: {{ $bgColor }}; color: {{ $textColor }}; padding: 0.25rem 0.5rem; margin-bottom: 0.25rem; border-radius: 3px; font-size: 0.7rem; cursor: pointer; border-left: 3px solid {{ $borderColor }};" 
+                                             onclick="event.stopPropagation(); window.location.href='{{ route('publications.show', $publication) }}'"
+                                             title="Publication - {{ $publication->client->nom_entreprise }} - {{ $publication->contentIdea->titre }} - {{ $publication->status === 'completed' ? 'Complétée' : ($publication->isOverdue() ? 'En retard' : ($publication->isUpcoming() ? 'Approche' : 'En attente')) }}">
+                                            <strong>{{ $icon }} {{ $publication->client->nom_entreprise }}</strong>
+                                            <br><small>{{ mb_strlen($publication->contentIdea->titre) > 15 ? mb_substr($publication->contentIdea->titre, 0, 15) . '...' : $publication->contentIdea->titre }}</small>
+                                            @if($hasWarning && !$publication->isUpcoming())
+                                                <br><small style="font-weight: bold;">⚠️</small>
+                                            @endif
+                                        </div>
+                                    @endforeach
+                                </div>
+                            </td>
+                        @endforeach
+                    </tr>
+                @endforeach
+            </tbody>
+        </table>
+            </div>
+        </div>
+        
+        <div class="calendar-legend">
+            <h4>Légende :</h4>
+            <div class="legend-items">
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #FF6A3A; border-left: 3px solid #e55a2a;"></div>
+                    <span>📹 Tournage</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #28a745; border-left: 3px solid #1e7e34;"></div>
+                    <span>📢 Publication</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #ffc107; border-left: 3px solid #ff9800;"></div>
+                    <span>⏰ Approche (dans 3 jours)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #dc3545; border-left: 3px solid #c82333;"></div>
+                    <span>🚨 En retard</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #28a745; border-left: 3px solid #1e7e34;"></div>
+                    <span>✅ Complété</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #6c757d; border-left: 3px solid #5a6268;"></div>
+                    <span>❌ Échec/Annulé</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Listes des prochains événements -->
+    <div class="events-grid">
+        <div class="card">
+            <div class="card-header">Prochains tournages</div>
+            @if($stats['upcoming_shootings']->count() > 0)
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Client</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($stats['upcoming_shootings'] as $shooting)
+                            <tr>
+                                <td>{{ $shooting->date->format('d/m/Y') }}</td>
+                                <td>{{ $shooting->client->nom_entreprise }}</td>
+                                <td>
+                                    <a href="{{ route('shootings.show', $shooting) }}" class="btn btn-primary" style="padding: 0.25rem 0.5rem; font-size: 0.85rem;">Voir</a>
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            @else
+                <div class="empty-state">
+                    <p>Aucun tournage à venir</p>
+                </div>
+            @endif
+        </div>
+        
+        <div class="card">
+            <div class="card-header">Prochaines publications</div>
+            @if($stats['upcoming_publications']->count() > 0)
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Client</th>
+                            <th>Idée</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($stats['upcoming_publications'] as $publication)
+                            <tr>
+                                <td>{{ $publication->date->format('d/m/Y') }}</td>
+                                <td>{{ $publication->client->nom_entreprise }}</td>
+                                <td>{{ $publication->contentIdea->titre }}</td>
+                                <td>
+                                    <a href="{{ route('publications.show', $publication) }}" class="btn btn-primary" style="padding: 0.25rem 0.5rem; font-size: 0.85rem;">Voir</a>
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            @else
+                <div class="empty-state">
+                    <p>Aucune publication à venir</p>
+                </div>
+            @endif
+        </div>
+    </div>
+    
+    <!-- Modal pour gérer les événements d'une date -->
+    <div id="dateModal" class="date-modal" style="display: none;">
+        <div class="date-modal-overlay" onclick="closeDateModal()"></div>
+        <div class="date-modal-content">
+            <div class="date-modal-header">
+                <h3 id="modalDateTitle">Événements du <span id="modalDateText"></span></h3>
+                <button class="date-modal-close" onclick="closeDateModal()">×</button>
+            </div>
+            <div class="date-modal-body">
+                <div id="modalLoading" class="modal-loading" style="text-align: center; padding: 2rem;">
+                    <p>Chargement...</p>
+                </div>
+                <div id="modalContent" style="display: none;">
+                    <!-- Tournages -->
+                    <div class="modal-section">
+                        <h4>📹 Tournages</h4>
+                        <div id="shootingsList" class="events-list"></div>
+                        <a href="{{ route('shootings.create') }}" id="addShootingLink" class="btn btn-primary modal-add-btn" style="margin-top: 0.5rem; display: inline-block; text-decoration: none;">
+                            + Ajouter un tournage
+                        </a>
+                    </div>
+                    
+                    <!-- Publications -->
+                    <div class="modal-section">
+                        <h4>📢 Publications</h4>
+                        <div id="publicationsList" class="events-list"></div>
+                        <a href="{{ route('publications.create') }}" id="addPublicationLink" class="btn btn-primary modal-add-btn" style="margin-top: 0.5rem; display: inline-block; text-decoration: none;">
+                            + Ajouter une publication
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <style>
+        /* Calendar Day Cell Styles */
+        .calendar-day-cell {
+            transition: background-color 0.2s;
+        }
+        
+        .calendar-day-cell:hover {
+            background-color: #f0f0f0 !important;
+        }
+        
+        .calendar-day-add-btn {
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        
+        .calendar-day-cell:hover .calendar-day-add-btn {
+            opacity: 1;
+        }
+        
+        .calendar-day-add-btn:hover {
+            opacity: 1 !important;
+            background: #e55a2a !important;
+            transform: scale(1.1);
+        }
+        
+        /* Date Modal Styles */
+        .date-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .date-modal-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(2px);
+            z-index: 10000;
+        }
+        
+        .date-modal-content {
+            position: relative;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            max-width: 800px;
+            width: 90%;
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;
+            z-index: 10001;
+            animation: modalSlideIn 0.3s ease-out;
+        }
+        
+        @keyframes modalSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-20px) scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+        
+        .date-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1.5rem;
+            border-bottom: 2px solid #f0f0f0;
+        }
+        
+        .date-modal-header h3 {
+            margin: 0;
+            color: #303030;
+            font-size: 1.5rem;
+        }
+        
+        .date-modal-close {
+            background: none;
+            border: none;
+            font-size: 2rem;
+            line-height: 1;
+            cursor: pointer;
+            color: #999;
+            padding: 0;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: all 0.2s;
+        }
+        
+        .date-modal-close:hover {
+            background: #f0f0f0;
+            color: #303030;
+        }
+        
+        .date-modal-body {
+            padding: 1.5rem;
+            overflow-y: auto;
+            flex: 1;
+        }
+        
+        .modal-section {
+            margin-bottom: 2rem;
+        }
+        
+        .modal-section:last-child {
+            margin-bottom: 0;
+        }
+        
+        .modal-section h4 {
+            margin: 0 0 1rem 0;
+            color: #303030;
+            font-size: 1.25rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid #f0f0f0;
+        }
+        
+        .events-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+        
+        .event-item {
+            background: #f8f9fa;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.2s;
+        }
+        
+        .event-item:hover {
+            background: #f0f0f0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .event-item-info {
+            flex: 1;
+        }
+        
+        .event-item-title {
+            font-weight: 600;
+            color: #303030;
+            margin-bottom: 0.25rem;
+        }
+        
+        .event-item-details {
+            font-size: 0.875rem;
+            color: #666;
+        }
+        
+        .event-item-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .event-item-actions .btn {
+            padding: 0.375rem 0.75rem;
+            font-size: 0.85rem;
+            white-space: nowrap;
+        }
+        
+        .event-status-badge {
+            display: inline-block;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-left: 0.5rem;
+        }
+        
+        .status-pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .status-completed {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .status-cancelled {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .status-overdue {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .status-upcoming {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .modal-loading {
+            color: #666;
+        }
+        
+        .empty-events {
+            text-align: center;
+            padding: 2rem;
+            color: #999;
+            font-style: italic;
+        }
+        
+        .modal-add-btn {
+            cursor: pointer !important;
+            pointer-events: auto !important;
+            z-index: 10002 !important;
+            position: relative;
+            text-decoration: none !important;
+        }
+        
+        .modal-add-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+            background-color: #e55a2a !important;
+        }
+        
+        .modal-add-btn:active {
+            transform: translateY(0);
+        }
+        
+        @media (max-width: 768px) {
+            .date-modal-content {
+                width: 95%;
+                max-height: 95vh;
+            }
+            
+            .date-modal-header {
+                padding: 1rem;
+            }
+            
+            .date-modal-header h3 {
+                font-size: 1.25rem;
+            }
+            
+            .date-modal-body {
+                padding: 1rem;
+            }
+            
+            .event-item {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .event-item-actions {
+                margin-top: 0.75rem;
+                justify-content: stretch;
+            }
+            
+            .event-item-actions .btn {
+                flex: 1;
+            }
+        }
+    </style>
+    
+    <script>
+        function openDateModal(date) {
+            const modal = document.getElementById('dateModal');
+            const modalDateText = document.getElementById('modalDateText');
+            const modalDateTitle = document.getElementById('modalDateTitle');
+            const modalLoading = document.getElementById('modalLoading');
+            const modalContent = document.getElementById('modalContent');
+            
+            // Formater la date en français
+            const dateObj = new Date(date + 'T00:00:00');
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            const dateFormatted = dateObj.toLocaleDateString('fr-FR', options);
+            modalDateText.textContent = dateFormatted;
+            
+            // Afficher la modal
+            modal.style.display = 'flex';
+            modalLoading.style.display = 'block';
+            modalContent.style.display = 'none';
+            
+            // Charger les événements
+            fetch(`/api/events-by-date?date=${date}`)
+                .then(response => response.json())
+                .then(data => {
+                    modalLoading.style.display = 'none';
+                    modalContent.style.display = 'block';
+                    
+                    // Afficher les tournages
+                    displayShootings(data.shootings, date);
+                    
+                    // Afficher les publications
+                    displayPublications(data.publications, date);
+                })
+                .catch(error => {
+                    console.error('Erreur:', error);
+                    modalLoading.innerHTML = '<p style="color: #dc3545;">Erreur lors du chargement des événements</p>';
+                });
+        }
+        
+        function closeDateModal() {
+            const modal = document.getElementById('dateModal');
+            modal.style.display = 'none';
+        }
+        
+        function displayShootings(shootings, date) {
+            const container = document.getElementById('shootingsList');
+            const addLink = document.getElementById('addShootingLink');
+            // Construire l'URL avec le paramètre date
+            const baseUrl = addLink.getAttribute('href').split('?')[0];
+            const shootingCreateUrl = `${baseUrl}?date=${encodeURIComponent(date)}`;
+            addLink.href = shootingCreateUrl;
+            addLink.style.pointerEvents = 'auto';
+            addLink.style.cursor = 'pointer';
+            // S'assurer que le lien fonctionne même si JavaScript bloque
+            addLink.setAttribute('target', '_self');
+            
+            if (shootings.length === 0) {
+                container.innerHTML = '<div class="empty-events">Aucun tournage prévu</div>';
+                return;
+            }
+            
+            container.innerHTML = shootings.map(shooting => {
+                let statusClass = 'status-pending';
+                let statusText = 'En attente';
+                
+                if (shooting.status === 'completed') {
+                    statusClass = 'status-completed';
+                    statusText = 'Complété';
+                } else if (shooting.status === 'cancelled') {
+                    statusClass = 'status-cancelled';
+                    statusText = 'Annulé';
+                } else if (shooting.is_overdue) {
+                    statusClass = 'status-overdue';
+                    statusText = 'En retard';
+                } else if (shooting.is_upcoming) {
+                    statusClass = 'status-upcoming';
+                    statusText = 'À venir';
+                }
+                
+                const contentIdeasText = shooting.content_ideas.length > 0 
+                    ? `${shooting.content_ideas.length} idée(s) de contenu` 
+                    : 'Aucune idée de contenu';
+                
+                return `
+                    <div class="event-item">
+                        <div class="event-item-info">
+                            <div class="event-item-title">
+                                📹 ${shooting.client_name}
+                                <span class="event-status-badge ${statusClass}">${statusText}</span>
+                            </div>
+                            <div class="event-item-details">
+                                ${contentIdeasText}
+                                ${shooting.description ? ' • ' + shooting.description.substring(0, 50) + (shooting.description.length > 50 ? '...' : '') : ''}
+                            </div>
+                        </div>
+                        <div class="event-item-actions">
+                            <a href="${shooting.url}" class="btn btn-primary">Voir</a>
+                            <a href="${shooting.edit_url}" class="btn btn-secondary">Modifier</a>
+                            <button onclick="deleteEvent('shooting', ${shooting.id}, '${shooting.client_name}')" class="btn btn-danger">Supprimer</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        function displayPublications(publications, date) {
+            const container = document.getElementById('publicationsList');
+            const addLink = document.getElementById('addPublicationLink');
+            // Construire l'URL avec le paramètre date
+            const baseUrl = addLink.getAttribute('href').split('?')[0];
+            const publicationCreateUrl = `${baseUrl}?date=${encodeURIComponent(date)}`;
+            addLink.href = publicationCreateUrl;
+            addLink.style.pointerEvents = 'auto';
+            addLink.style.cursor = 'pointer';
+            // S'assurer que le lien fonctionne même si JavaScript bloque
+            addLink.setAttribute('target', '_self');
+            
+            if (publications.length === 0) {
+                container.innerHTML = '<div class="empty-events">Aucune publication prévue</div>';
+                return;
+            }
+            
+            container.innerHTML = publications.map(publication => {
+                let statusClass = 'status-pending';
+                let statusText = 'En attente';
+                
+                if (publication.status === 'completed') {
+                    statusClass = 'status-completed';
+                    statusText = 'Complétée';
+                } else if (publication.status === 'cancelled') {
+                    statusClass = 'status-cancelled';
+                    statusText = 'Annulée';
+                } else if (publication.is_overdue) {
+                    statusClass = 'status-overdue';
+                    statusText = 'En retard';
+                } else if (publication.is_upcoming) {
+                    statusClass = 'status-upcoming';
+                    statusText = 'À venir';
+                }
+                
+                const shootingText = publication.shooting_id 
+                    ? `Tournage lié du ${publication.shooting_date}` 
+                    : 'Aucun tournage lié';
+                
+                return `
+                    <div class="event-item">
+                        <div class="event-item-info">
+                            <div class="event-item-title">
+                                📢 ${publication.client_name}
+                                <span class="event-status-badge ${statusClass}">${statusText}</span>
+                            </div>
+                            <div class="event-item-details">
+                                ${publication.content_idea_titre || 'Aucune idée de contenu'} • ${shootingText}
+                                ${publication.description ? ' • ' + publication.description.substring(0, 50) + (publication.description.length > 50 ? '...' : '') : ''}
+                            </div>
+                        </div>
+                        <div class="event-item-actions">
+                            <a href="${publication.url}" class="btn btn-primary">Voir</a>
+                            <a href="${publication.edit_url}" class="btn btn-secondary">Modifier</a>
+                            <button onclick="deleteEvent('publication', ${publication.id}, '${publication.client_name}')" class="btn btn-danger">Supprimer</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        function deleteEvent(type, id, name) {
+            if (!confirm(`Êtes-vous sûr de vouloir supprimer ce ${type === 'shooting' ? 'tournage' : 'publication'} pour ${name} ?`)) {
+                return;
+            }
+            
+            const url = type === 'shooting' 
+                ? `/shootings/${id}` 
+                : `/publications/${id}`;
+            
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = url;
+            
+            const methodInput = document.createElement('input');
+            methodInput.type = 'hidden';
+            methodInput.name = '_method';
+            methodInput.value = 'DELETE';
+            form.appendChild(methodInput);
+            
+            const csrfInput = document.createElement('input');
+            csrfInput.type = 'hidden';
+            csrfInput.name = '_token';
+            csrfInput.value = document.querySelector('meta[name="csrf-token"]').content;
+            form.appendChild(csrfInput);
+            
+            document.body.appendChild(form);
+            form.submit();
+        }
+        
+        // Fonction pour initialiser les événements de clic sur les cellules du calendrier
+        function initCalendarCellEvents() {
+            document.querySelectorAll('.calendar-day-cell').forEach(cell => {
+                // Supprimer les anciens événements si ils existent
+                const newCell = cell.cloneNode(true);
+                cell.parentNode.replaceChild(newCell, cell);
+                
+                // Ajouter le nouvel événement
+                newCell.addEventListener('click', function(e) {
+                    // Ne pas ouvrir si on clique sur un événement ou le bouton +
+                    if (e.target.closest('.calendar-event') || e.target.closest('.calendar-day-add-btn')) {
+                        return;
+                    }
+                    
+                    const date = this.getAttribute('data-date');
+                    if (date) {
+                        openDateModal(date);
+                    }
+                });
+            });
+        }
+        
+        // Ouvrir la modal au clic sur une cellule de date
+        document.addEventListener('DOMContentLoaded', function() {
+            initCalendarCellEvents();
+            
+            // Ajouter les événements change sur les selects pour mettre à jour automatiquement
+            document.getElementById('month').addEventListener('change', function() {
+                const month = parseInt(this.value);
+                const year = parseInt(document.getElementById('year').value);
+                updateCalendar(month, year);
+            });
+            
+            document.getElementById('year').addEventListener('change', function() {
+                const month = parseInt(document.getElementById('month').value);
+                const year = parseInt(this.value);
+                updateCalendar(month, year);
+            });
+            
+            // S'assurer que les liens d'ajout fonctionnent
+            document.addEventListener('click', function(e) {
+                if (e.target.closest('#addShootingLink') || e.target.closest('#addPublicationLink')) {
+                    const link = e.target.closest('#addShootingLink') || e.target.closest('#addPublicationLink');
+                    if (link && link.href && link.href !== '#' && link.href !== '{{ route('shootings.create') }}' && link.href !== '{{ route('publications.create') }}') {
+                        // Le lien a déjà été mis à jour avec la date, on le laisse fonctionner normalement
+                        return true;
+                    }
+                }
+            });
+        });
+        
+        // Fermer la modal avec Escape
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeDateModal();
+            }
+        });
+        
+        // Fonction pour naviguer entre les mois sans recharger la page
+        function navigateMonth(direction) {
+            const monthSelect = document.getElementById('month');
+            const yearSelect = document.getElementById('year');
+            
+            let currentMonth = parseInt(monthSelect.value);
+            let currentYear = parseInt(yearSelect.value);
+            
+            let newMonth = currentMonth + direction;
+            let newYear = currentYear;
+            
+            if (newMonth < 1) {
+                newMonth = 12;
+                newYear--;
+            } else if (newMonth > 12) {
+                newMonth = 1;
+                newYear++;
+            }
+            
+            // Mettre à jour les selects
+            monthSelect.value = newMonth;
+            yearSelect.value = newYear;
+            
+            updateCalendar(newMonth, newYear);
+        }
+        
+        // Fonction pour mettre à jour le calendrier via AJAX
+        function updateCalendar(month, year) {
+            const calendarWrapper = document.getElementById('calendarWrapper');
+            const calendarContent = document.getElementById('calendarContent');
+            const calendarLoading = document.getElementById('calendarLoading');
+            const calendarHeader = document.querySelector('.calendar-header h3');
+            
+            // Afficher le loading
+            calendarContent.style.display = 'none';
+            calendarLoading.style.display = 'block';
+            
+            // Faire la requête AJAX
+            fetch(`/api/admin-calendar?month=${month}&year=${year}`)
+                .then(response => response.json())
+                .then(data => {
+                    // Mettre à jour le contenu du calendrier
+                    calendarContent.innerHTML = data.html;
+                    
+                    // Mettre à jour le titre
+                    const months = ['', 'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
+                    calendarHeader.textContent = `Planning global - ${data.monthName} ${data.year}`;
+                    
+                    // Mettre à jour les valeurs des selects
+                    document.getElementById('month').value = month;
+                    document.getElementById('year').value = year;
+                    
+                    // Réinitialiser les événements de clic sur les cellules
+                    initCalendarCellEvents();
+                    
+                    // Masquer le loading et afficher le contenu
+                    calendarLoading.style.display = 'none';
+                    calendarContent.style.display = 'block';
+                })
+                .catch(error => {
+                    console.error('Erreur:', error);
+                    calendarLoading.innerHTML = '<p style="color: #dc3545;">Erreur lors du chargement du calendrier</p>';
+                });
+        }
+    </script>
+@endsection
