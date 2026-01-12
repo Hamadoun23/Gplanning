@@ -3,15 +3,18 @@
 ## 📋 Table des matières
 
 1. [Vue d'ensemble](#vue-densemble)
-2. [Architecture du projet](#architecture-du-projet)
-3. [Modèles (Models)](#modèles-models)
-4. [Migrations de base de données](#migrations-de-base-de-données)
-5. [Contrôleurs (Controllers)](#contrôleurs-controllers)
-6. [Vues (Views)](#vues-views)
-7. [Routes](#routes)
-8. [Fonctionnalités principales](#fonctionnalités-principales)
-9. [UX et JavaScript](#ux-et-javascript)
-10. [Configuration](#configuration)
+2. [Système d'authentification et utilisateurs](#système-dauthentification-et-utilisateurs)
+3. [Architecture du projet](#architecture-du-projet)
+4. [Modèles (Models)](#modèles-models)
+5. [Migrations de base de données](#migrations-de-base-de-données)
+6. [Contrôleurs (Controllers)](#contrôleurs-controllers)
+7. [Vues (Views)](#vues-views)
+8. [Routes](#routes)
+9. [Fonctionnalités principales](#fonctionnalités-principales)
+10. [Espace Client](#espace-client)
+11. [UX et JavaScript](#ux-et-javascript)
+12. [PWA (Progressive Web App)](#pwa-progressive-web-app)
+13. [Configuration](#configuration)
 
 ---
 
@@ -36,6 +39,149 @@
 - **Frontend** : Blade Templates, CSS3, JavaScript (ES6+)
 - **Animations** : GSAP (GreenSock Animation Platform)
 - **Export** : CSV pour Excel, HTML pour Word (via PHPOffice/PhpWord)
+- **PWA** : Service Worker, Web App Manifest
+- **Authentification** : Laravel Breeze
+
+---
+
+## Système d'authentification et utilisateurs
+
+### Modèle User (`app/Models/User.php`)
+
+Le système d'authentification utilise Laravel Breeze avec un modèle User personnalisé.
+
+**Attributs :**
+- `id` : Identifiant unique
+- `username` : Nom d'utilisateur (unique, utilisé pour la connexion)
+- `password` : Mot de passe (hashé avec bcrypt)
+- `role` : Rôle de l'utilisateur (enum: 'admin', 'client')
+- `client_id` : Référence au client (foreign key, nullable, uniquement pour les utilisateurs clients)
+- `remember_token` : Token de session "Se souvenir de moi"
+- `timestamps` : created_at, updated_at
+
+**Relations :**
+- `client()` : BelongsTo → Client (uniquement pour les utilisateurs clients)
+
+**Méthodes :**
+- `isAdmin(): bool` : Vérifie si l'utilisateur est un administrateur
+- `isClient(): bool` : Vérifie si l'utilisateur est un client
+
+**Authentification :**
+- L'authentification utilise le champ `username` au lieu de `email`
+- Configuration dans `config/auth.php` avec le provider personnalisé
+
+### Types d'utilisateurs
+
+#### 1. Administrateurs (`role = 'admin'`)
+
+**Droits d'accès :**
+- Accès complet à toutes les fonctionnalités
+- Gestion des clients (CRUD)
+- Gestion des idées de contenu
+- Gestion des tournages et publications
+- Accès au dashboard principal
+- Génération de rapports pour tous les clients
+- Comparaison de plannings
+- Export des calendriers
+
+**Utilisateurs administrateurs créés par défaut :**
+- Modi (Wara@lyon2026)
+- Dante (Dante@tmc2026)
+- Kmex (Bigk@2026)
+- Ballo (Hm@ballo2026)
+- Cisse (23m@2026)
+- Yaya (Yalatif@2026)
+- Youba (Youbs@2026)
+
+#### 2. Clients (`role = 'client'`)
+
+**Droits d'accès :**
+- Accès uniquement à leur propre espace client
+- Visualisation de leur planning (lecture seule)
+- Consultation de leurs statistiques
+- Génération de leur propre rapport
+- **Pas d'accès** aux fonctionnalités d'administration
+
+**Utilisateurs clients créés par défaut :**
+- Gda (Team@com2026) → lié au client "Gda"
+- Tmc (Tmc@gda2026) → lié au client "Tmc"
+- Motors (Motors@haval2026) → lié au client "Motors"
+
+### Création des utilisateurs
+
+Les utilisateurs sont créés via le **UserSeeder** (`database/seeders/UserSeeder.php`).
+
+**Commande pour créer/mettre à jour les utilisateurs :**
+```bash
+php artisan db:seed --class=UserSeeder
+```
+
+**Fonctionnement du seeder :**
+- Utilise `updateOrCreate()` pour éviter les doublons
+- Les mots de passe sont hashés automatiquement avec `Hash::make()`
+- Pour les utilisateurs clients, le seeder :
+  1. Crée ou trouve le client correspondant
+  2. Crée l'utilisateur avec le `client_id` associé
+
+**Exemple d'ajout d'un nouvel utilisateur :**
+
+Pour ajouter un nouvel administrateur, modifier `UserSeeder.php` :
+```php
+$admins = [
+    // ... admins existants
+    ['username' => 'NouvelAdmin', 'password' => 'MotDePasse@2026', 'role' => 'admin'],
+];
+```
+
+Pour ajouter un nouvel utilisateur client :
+```php
+$clientUsers = [
+    // ... clients existants
+    ['username' => 'NouveauClient', 'password' => 'MotDePasse@2026', 'role' => 'client', 'client_name' => 'NomEntreprise'],
+];
+```
+
+### Middlewares de sécurité
+
+#### 1. `EnsureAdmin` (`app/Http/Middleware/EnsureAdmin.php`)
+
+**Rôle :** Vérifie que l'utilisateur est un administrateur
+
+**Utilisation :** Appliqué aux routes admin via le middleware `'admin'`
+
+**Comportement :**
+- Si l'utilisateur n'est pas authentifié → redirection vers login
+- Si l'utilisateur n'est pas admin → erreur 403 (Accès interdit)
+
+#### 2. `EnsureClientAccess` (`app/Http/Middleware/EnsureClientAccess.php`)
+
+**Rôle :** Vérifie que les clients n'accèdent qu'à leur propre espace
+
+**Utilisation :** Appliqué aux routes client via le middleware `'client.access'`
+
+**Comportement :**
+- Les admins ont accès à tous les espaces clients
+- Les clients ne peuvent accéder qu'à leur propre `client_id`
+- Si un client tente d'accéder à un autre client → erreur 403
+
+### Redirection après connexion
+
+**Logique de redirection** (`routes/web.php` et `AuthenticatedSessionController`) :
+- **Client** → Redirigé vers `/clients/{client_id}/dashboard` (son espace client)
+- **Admin** → Redirigé vers `/dashboard` (dashboard principal)
+
+### Migration des utilisateurs
+
+**Fichier :** `database/migrations/2026_01_09_123019_create_users_table.php`
+
+**Champs :**
+- `username` : string, unique
+- `password` : string (hashé)
+- `role` : enum('admin', 'client'), default 'client'
+- `remember_token` : nullable
+
+**Migration supplémentaire :** `2026_01_09_141011_add_client_id_to_users_table.php`
+- Ajoute `client_id` (foreign key vers clients, nullable)
 
 ---
 
@@ -117,6 +263,7 @@ Représente un tournage planifié.
 **Relations :**
 - `client()` : BelongsTo → Client
 - `contentIdeas()` : BelongsToMany → ContentIdea (table pivot: `content_idea_shooting`)
+  - **Note :** Uniquement une idée de contenu par tournage (relation many-to-many mais utilisation en one-to-one)
 - `publications()` : HasMany → Publication
 
 **Méthodes :**
@@ -159,6 +306,25 @@ Représente une règle de publication pour un client (jour non recommandé).
 **Relations :**
 - `client()` : BelongsTo → Client
 
+### 6. User (`app/Models/User.php`)
+
+Représente un utilisateur de l'application (admin ou client).
+
+**Attributs :**
+- `id` : Identifiant unique
+- `username` : Nom d'utilisateur (unique, utilisé pour la connexion)
+- `password` : Mot de passe hashé
+- `role` : Rôle (enum: 'admin', 'client')
+- `client_id` : Référence au client (foreign key, nullable, uniquement pour les clients)
+- `remember_token` : Token de session
+
+**Relations :**
+- `client()` : BelongsTo → Client (nullable, uniquement pour les utilisateurs clients)
+
+**Méthodes :**
+- `isAdmin(): bool` : Vérifie si l'utilisateur est un administrateur
+- `isClient(): bool` : Vérifie si l'utilisateur est un client
+
 ---
 
 ## Migrations de base de données
@@ -199,6 +365,13 @@ Représente une règle de publication pour un client (jour non recommandé).
 11. **`add_description_to_publications_table`** (2026_01_08_140830)
     - Ajoute le champ `description` (text, nullable) aux publications
 
+12. **`create_users_table`** (2026_01_09_123019)
+    - Crée la table `users` avec `username`, `password`, `role`
+    - Système d'authentification
+
+13. **`add_client_id_to_users_table`** (2026_01_09_141011)
+    - Ajoute `client_id` (foreign key, nullable) pour lier les utilisateurs clients à leur client
+
 ### Schéma de base de données
 
 ```
@@ -238,6 +411,15 @@ content_idea_shooting (table pivot)
 ├── content_idea_id (FK → content_ideas.id)
 ├── shooting_id (FK → shootings.id)
 └── timestamps
+
+users
+├── id (PK)
+├── username (unique)
+├── password (hashed)
+├── role (enum: 'admin', 'client')
+├── client_id (FK → clients.id, nullable)
+├── remember_token (nullable)
+└── timestamps
 ```
 
 ---
@@ -269,7 +451,7 @@ Gère le tableau de bord principal de l'application.
 
 ### 2. ClientController (`app/Http/Controllers/ClientController.php`)
 
-Gère le CRUD des clients.
+Gère le CRUD des clients et l'espace client.
 
 **Méthodes :**
 - `index()` : Liste tous les clients
@@ -279,6 +461,21 @@ Gère le CRUD des clients.
 - `edit(Client $client)` : Formulaire d'édition
 - `update(Request $request, Client $client)` : Met à jour un client
 - `destroy(Client $client)` : Supprime un client
+
+**Méthodes spéciales :**
+- **`dashboard(Request $request, Client $client)`**
+  - Affiche le dashboard client (espace client)
+  - Calendrier mensuel avec tournages et publications du client
+  - Statistiques détaillées (total, en attente, complétés, non réalisés)
+  - Tournages/publications à venir (30 prochains jours)
+  - Tournages/publications récents (30 derniers jours)
+  - Paramètres : `month`, `year` (optionnels)
+  - **Protégé par middleware `client.access`**
+
+- **`generateReport(Client $client)`**
+  - Génère un rapport Word pour le client
+  - Contenu : statistiques, tournages, publications, règles
+  - **Accessible aux clients pour leur propre rapport**
 
 **Fonctionnalités spéciales :**
 - Redirection intelligente avec paramètre `return_to`
@@ -317,10 +514,8 @@ Gère les tournages avec calendrier.
 
 - **`store(Request $request)`**
   - Crée un nouveau tournage
-  - Validation : `client_id`, `date`, `content_idea_ids[]` (min 1), `description` (optionnel)
-  - Actions possibles :
-    - `action=create` : Crée et redirige vers la page du tournage
-    - `action=create_and_publish` : Crée et redirige vers le formulaire de publication
+  - Validation : `client_id`, `date`, `content_idea_id` (requis, une seule idée), `description` (optionnel)
+  - **Modification :** Accepte maintenant `content_idea_id` (singulier) au lieu de `content_idea_ids[]`
 
 - **`show(Shooting $shooting)`**
   - Affiche les détails d'un tournage avec alertes
@@ -330,6 +525,8 @@ Gère les tournages avec calendrier.
 
 - **`update(Request $request, Shooting $shooting)`**
   - Met à jour un tournage
+  - Validation : `client_id`, `date`, `content_idea_id` (requis, une seule idée), `description` (optionnel)
+  - **Modification :** Utilise `sync([$content_idea_id])` pour une seule idée de contenu
 
 - **`destroy(Request $request, Shooting $shooting)`**
   - Supprime un tournage
@@ -444,10 +641,17 @@ Layout principal de l'application avec :
 ### Vues par module
 
 #### Clients (`resources/views/clients/`)
-- **`index.blade.php`** : Liste des clients avec statistiques
+- **`index.blade.php`** : Liste des clients avec statistiques (responsive, colonne "Idées de contenu" retirée)
 - **`create.blade.php`** : Formulaire de création
 - **`edit.blade.php`** : Formulaire d'édition
 - **`show.blade.php`** : Détails du client avec tournages et publications récents, possibilité de suppression
+- **`dashboard.blade.php`** : Dashboard client (espace client) avec :
+  - Statistiques (tournages, publications, règles, ce mois)
+  - Calendrier mensuel interactif
+  - Liste des événements à venir et récents
+  - Bouton de génération de rapport
+  - Navigation mensuelle
+  - Modales pour voir les détails des événements
 
 #### Idées de contenu (`resources/views/content-ideas/`)
 - **`index.blade.php`** : Liste des idées de contenu
@@ -457,8 +661,8 @@ Layout principal de l'application avec :
 
 #### Tournages (`resources/views/shootings/`)
 - **`index.blade.php`** : Calendrier mensuel avec navigation
-- **`create.blade.php`** : Formulaire avec vérification en temps réel des conflits
-- **`edit.blade.php`** : Formulaire d'édition
+- **`create.blade.php`** : Formulaire avec vérification en temps réel des conflits, **liste déroulante moderne pour sélectionner une seule idée de contenu**
+- **`edit.blade.php`** : Formulaire d'édition avec **liste déroulante moderne pour sélectionner une seule idée de contenu**
 - **`show.blade.php`** : Détails avec alertes, actions (compléter, échec, reprogrammer)
 
 #### Publications (`resources/views/publications/`)
@@ -472,6 +676,11 @@ Layout principal de l'application avec :
 - Alertes visuelles (retards, événements à venir)
 - Boutons d'export (Excel, Word)
 - Navigation mensuelle
+- Formulaire de génération de rapport avec sélection de client
+- Correction du bouton "Générer rapport" (réinitialisation automatique après téléchargement)
+
+#### Authentification (`resources/views/auth/`)
+- **`login.blade.php`** : Page de connexion avec support PWA
 
 #### Comparaison de plannings (`resources/views/planning-comparison/index.blade.php`)
 - Formulaire de sélection de clients (multi-sélection)
@@ -554,6 +763,22 @@ DELETE /clients/{client}/publication-rules/{rule}  → PublicationRuleController
 GET  /planning-comparison          → PlanningComparisonController@index
 ```
 
+#### Espace Client
+```php
+GET  /clients/{client}/dashboard   → ClientController@dashboard (middleware: client.access)
+GET  /clients/{client}/generate-report → ClientController@generateReport (middleware: client.access)
+```
+
+#### Authentification
+```php
+GET  /login                        → AuthenticatedSessionController@create
+POST /login                        → AuthenticatedSessionController@store
+POST /logout                       → AuthenticatedSessionController@destroy
+GET  /profile                      → ProfileController@edit
+PATCH /profile                     → ProfileController@update
+DELETE /profile                    → ProfileController@destroy
+```
+
 ### Routes API (`routes/web.php` - Section API)
 
 #### Autocomplétion
@@ -595,6 +820,27 @@ GET  /api/check-date               → Vérifie les conflits et avertissements p
 GET  /api/shootings/{shooting}     → Retourne les détails JSON d'un tournage
 ```
 
+#### API Espace Client
+```php
+GET  /api/client-calendar          → Retourne le calendrier HTML pour un client
+GET  /api/client-events-by-date     → Retourne les événements d'un client pour une date
+GET  /api/client-event-details     → Retourne les détails d'un événement spécifique
+```
+
+**Paramètres pour `/api/client-calendar` :**
+- `month` : Mois (1-12)
+- `year` : Année
+- `client_id` : ID du client (requis)
+
+**Paramètres pour `/api/client-events-by-date` :**
+- `date` : Date au format Y-m-d (requis)
+- `client_id` : ID du client (requis)
+
+**Paramètres pour `/api/client-event-details` :**
+- `type` : 'shooting' ou 'publication' (requis)
+- `id` : ID de l'événement (requis)
+- `client_id` : ID du client (requis)
+
 ---
 
 ## Fonctionnalités principales
@@ -610,18 +856,19 @@ GET  /api/shootings/{shooting}     → Retourne les détails JSON d'un tournage
 
 - Idées de contenu **globales** (partagées entre tous les clients)
 - Types : vidéo, image, texte
-- Utilisables dans les tournages (plusieurs idées par tournage) et publications (une idée par publication)
+- Utilisables dans les tournages (**une seule idée par tournage**) et publications (une idée par publication)
+- **Modification récente :** Les tournages utilisent maintenant une liste déroulante pour sélectionner une seule idée de contenu
 
 ### 3. Gestion des tournages
 
 - Calendrier mensuel avec navigation
-- Création avec sélection de client, date, et idées de contenu
+- Création avec sélection de client, date, et **une seule idée de contenu** (liste déroulante moderne)
 - Vérification en temps réel des conflits de dates
 - Statuts : pending, completed, cancelled
 - Actions : marquer comme complété, échec, reprogrammer
 - Description optionnelle
 - Export Excel du calendrier
-- Possibilité de créer une publication directement après création
+- **Modification :** Un tournage est maintenant lié à une seule idée de contenu (au lieu de plusieurs)
 
 ### 4. Gestion des publications
 
@@ -662,11 +909,111 @@ GET  /api/shootings/{shooting}     → Retourne les détails JSON d'un tournage
 - Format tableau avec jours de la semaine en colonnes
 - Contenu : date, événements avec statuts, clients, idées de contenu, avertissements
 - Disponible pour : dashboard, tournages, publications
+- Encodage UTF-8 avec BOM pour Excel
 
 #### Export Word (Rapport)
 - Document Word avec HTML/CSS intégré
 - Détails complets par client : tournages, publications, statistiques
-- Sélection d'un ou plusieurs clients
+- Sélection d'un ou plusieurs clients (admin) ou rapport unique (client)
+- Format : `.doc` (application/msword)
+- **Correction :** Le bouton "Générer rapport" se réinitialise automatiquement après téléchargement
+
+### 9. Système d'authentification
+
+- **Connexion** : Utilisation du `username` au lieu de l'email
+- **Rôles** : Deux types d'utilisateurs (admin, client)
+- **Sécurité** :
+  - Middleware `admin` : Restreint l'accès aux administrateurs
+  - Middleware `client.access` : Restreint l'accès des clients à leur propre espace
+  - Protection CSRF sur tous les formulaires
+  - Mots de passe hashés avec bcrypt
+
+### 10. Responsive Design
+
+- **Tableau des clients** : Mode cartes sur mobile avec labels dynamiques
+- **Formulaires** : Adaptation mobile avec champs pleine largeur
+- **Calendriers** : Scroll horizontal sur petits écrans
+- **Navigation** : Menu adaptatif selon la taille d'écran
+
+---
+
+## Espace Client
+
+### Vue d'ensemble
+
+L'espace client est une interface dédiée permettant aux clients de consulter leur planning et leurs statistiques en lecture seule.
+
+### Accès
+
+- **URL** : `/clients/{client_id}/dashboard`
+- **Protection** : Middleware `client.access`
+- **Redirection automatique** : Les clients sont redirigés vers leur dashboard après connexion
+
+### Fonctionnalités
+
+#### 1. Statistiques principales
+
+Quatre cartes de statistiques affichant :
+- **Tournages** : Total, en attente, complétés, non réalisés (uniquement cancelled)
+- **Publications** : Total, en attente, complétées, non réalisées (uniquement cancelled)
+- **Règles de publication** : Nombre de jours non recommandés configurés
+- **Ce mois** : Nombre total de tournages et publications du mois en cours
+
+**Note importante :** Seuls les éléments avec le statut `cancelled` (échec) sont comptés comme "non réalisés". Les éléments `pending` restent dans "en attente".
+
+#### 2. Calendrier mensuel
+
+- Affichage du planning du client pour le mois sélectionné
+- Navigation entre les mois (précédent/suivant)
+- Sélection de mois et année via listes déroulantes
+- Mise à jour AJAX sans rechargement de page
+- Clic sur une date pour voir les événements du jour
+- Clic sur un événement pour voir ses détails
+
+#### 3. Événements à venir
+
+- **Tournages à venir** : 30 prochains jours avec statut "pending"
+- **Publications à venir** : 30 prochains jours avec statut "pending"
+- Affichage de la date, des idées de contenu, et description
+- Bouton "Voir" pour afficher les détails dans une modale
+
+#### 4. Événements récents
+
+- **Tournages récents** : 30 derniers jours
+- **Publications récentes** : 30 derniers jours
+- Affichage du statut (complété, annulé)
+- Bouton "Voir" pour afficher les détails
+
+#### 5. Règles de publication
+
+- Affichage des jours non recommandés configurés pour le client
+- Badges colorés pour chaque jour
+
+#### 6. Génération de rapport
+
+- Bouton "Générer rapport" en haut à droite
+- Génère un rapport Word détaillé pour le client
+- Contenu : statistiques, tournages, publications, règles
+- **Accessible uniquement pour le client concerné**
+
+### Interface utilisateur
+
+- **Layout** : `resources/views/layouts/client-space.blade.php`
+- **Design** : Interface épurée avec header orange
+- **Responsive** : Adaptation mobile complète
+- **PWA** : Support de l'installation en application mobile
+
+### API Endpoints utilisés
+
+- `/api/client-calendar` : Chargement du calendrier
+- `/api/client-events-by-date` : Événements d'une date
+- `/api/client-event-details` : Détails d'un événement
+
+### Restrictions
+
+- **Lecture seule** : Les clients ne peuvent pas modifier les données
+- **Accès limité** : Un client ne peut accéder qu'à son propre espace
+- **Pas d'administration** : Aucun accès aux fonctionnalités admin
 
 ---
 
@@ -727,6 +1074,80 @@ Intégré via CDN pour les animations fluides :
 
 ---
 
+## PWA (Progressive Web App)
+
+### Vue d'ensemble
+
+L'application est configurée comme Progressive Web App (PWA), permettant son installation sur les appareils mobiles et desktop.
+
+### Fichiers PWA
+
+#### 1. Manifest (`public/manifest.json`)
+
+Définit les métadonnées de l'application :
+- Nom de l'application
+- Description
+- Icônes (à générer depuis `Icones.jpg`)
+- Couleur de thème
+- Mode d'affichage (standalone)
+
+#### 2. Service Worker (`public/sw.js`)
+
+Gère le cache et le fonctionnement hors ligne :
+- Mise en cache des fichiers statiques
+- Stratégie de cache : Network First avec fallback
+- Mise à jour automatique du cache
+- Nettoyage des anciens caches
+
+#### 3. Script PWA (`public/js/pwa.js`)
+
+Gère l'enregistrement et l'installation :
+- Enregistrement automatique du service worker
+- Détection des mises à jour
+- Gestion de l'événement d'installation
+- Bouton d'installation (si disponible)
+
+### Icônes PWA
+
+**Fichier source :** `public/Icones.jpg`
+
+**Icônes requises :** (à générer dans `public/`)
+- `icon-192x192.png`
+- `icon-512x512.png`
+- Autres tailles selon les besoins
+
+**Génération :**
+- Utiliser [PWA Asset Generator](https://www.pwabuilder.com/imageGenerator)
+- Ou exécuter le script PowerShell `create-icons-pwa.ps1`
+
+### Intégration
+
+Les fichiers PWA sont intégrés dans :
+- `resources/views/layouts/app.blade.php` (admin)
+- `resources/views/layouts/client-space.blade.php` (client)
+- `resources/views/auth/login.blade.php` (login)
+
+**Meta tags :**
+- `theme-color` : #FF6A3A
+- `apple-mobile-web-app-capable` : yes
+- `apple-mobile-web-app-status-bar-style` : black-translucent
+
+### Fonctionnalités PWA
+
+- ✅ Installation sur mobile et desktop
+- ✅ Fonctionnement hors ligne (fichiers statiques)
+- ✅ Icônes personnalisées
+- ✅ Affichage en mode standalone
+- ✅ Mise à jour automatique du cache
+
+### Documentation complémentaire
+
+- `PWA_SETUP.md` : Guide de configuration PWA
+- `PWA_ICONS_GUIDE.md` : Guide de création des icônes
+- `CREER_ICONES_PWA.md` : Instructions en français
+
+---
+
 ## Configuration
 
 ### Fichier `.env`
@@ -754,7 +1175,9 @@ DB_PASSWORD=
 4. Générer la clé : `php artisan key:generate`
 5. Configurer la base de données dans `.env`
 6. Exécuter les migrations : `php artisan migrate`
-7. Démarrer le serveur : `php artisan serve`
+7. Créer les utilisateurs : `php artisan db:seed --class=UserSeeder`
+8. Générer les icônes PWA (voir `PWA_ICONS_GUIDE.md`)
+9. Démarrer le serveur : `php artisan serve`
 
 ### Commandes utiles
 
@@ -798,12 +1221,12 @@ php artisan serve               # Démarrer sur http://127.0.0.1:8000
 
 ### Évolutions futures possibles
 
-- Système d'authentification utilisateurs
-- Permissions et rôles
 - Notifications par email
 - API REST complète
 - Export PDF
 - Intégration calendrier externe (Google Calendar, etc.)
+- Gestion des permissions plus granulaire
+- Historique des modifications
 
 ---
 
@@ -815,6 +1238,78 @@ Pour toute question ou problème, consulter :
 
 ---
 
-**Dernière mise à jour :** Janvier 2026  
+---
+
+## Résumé des fonctionnalités complètes
+
+### Fonctionnalités Admin
+
+1. **Dashboard principal**
+   - Calendrier combiné (tournages + publications)
+   - Alertes (retards, événements à venir)
+   - Génération de rapports (tous clients ou un client)
+   - Export Excel du calendrier
+
+2. **Gestion des clients**
+   - CRUD complet
+   - Statistiques par client
+   - Gestion des règles de publication
+
+3. **Gestion des idées de contenu**
+   - CRUD complet
+   - Idées globales (partagées)
+
+4. **Gestion des tournages**
+   - Calendrier mensuel
+   - Création/édition avec une seule idée de contenu
+   - Gestion des statuts
+   - Reprogrammation
+   - Export Excel
+
+5. **Gestion des publications**
+   - Calendrier mensuel
+   - Création/édition avec liaison optionnelle au tournage
+   - Vérification des jours non recommandés
+   - Gestion des statuts
+   - Reprogrammation
+   - Export Excel
+
+6. **Comparaison de plannings**
+   - Sélection multiple de clients
+   - Calendrier comparatif
+
+### Fonctionnalités Client
+
+1. **Dashboard client**
+   - Statistiques détaillées
+   - Calendrier mensuel interactif
+   - Événements à venir et récents
+   - Génération de rapport personnel
+
+2. **Visualisation**
+   - Planning en lecture seule
+   - Détails des événements
+   - Règles de publication
+
+### Sécurité
+
+- Authentification par username
+- Middleware admin et client.access
+- Protection CSRF
+- Validation côté serveur
+- Accès restreint par rôle
+
+### UX/UI
+
+- Design moderne et responsive
+- Animations GSAP
+- Vérification en temps réel
+- Sauvegarde automatique des brouillons
+- Support PWA
+- Interface mobile optimisée
+
+---
+
+**Dernière mise à jour :** Lundi 12 janvier 2026 à 11h42  
 **Version :** 1.0  
 **Développé pour :** Gda Com

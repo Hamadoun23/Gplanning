@@ -143,11 +143,11 @@ class ClientController extends Controller
             'pending_shootings' => $client->shootings()->where('status', 'pending')->count(),
             'completed_shootings' => $client->shootings()->where('status', 'completed')->count(),
             'cancelled_shootings' => $client->shootings()->where('status', 'cancelled')->count(),
-            'non_realises_shootings' => $client->shootings()->where('status', '!=', 'completed')->count(), // Tous sauf complétés
+            'non_realises_shootings' => $client->shootings()->where('status', 'cancelled')->count(), // Seulement les échecs (cancelled)
             'pending_publications' => $client->publications()->where('status', 'pending')->count(),
             'completed_publications' => $client->publications()->where('status', 'completed')->count(),
             'cancelled_publications' => $client->publications()->where('status', 'cancelled')->count(),
-            'non_realises_publications' => $client->publications()->where('status', '!=', 'completed')->count(), // Tous sauf complétées
+            'non_realises_publications' => $client->publications()->where('status', 'cancelled')->count(), // Seulement les échecs (cancelled)
             'publication_rules' => $client->publicationRules->count(),
         ];
 
