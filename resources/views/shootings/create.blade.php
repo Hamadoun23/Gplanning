@@ -36,22 +36,25 @@
             </div>
             
             <div class="form-group">
-                <label>Idées de contenu *</label>
-                @if($contentIdeas->count() > 0)
-                    <div style="max-height: 300px; overflow-y: auto; border: 1px solid #ddd; padding: 1rem; border-radius: 4px;">
-                        @foreach($contentIdeas as $idea)
-                            <label style="display: block; margin-bottom: 0.5rem; font-weight: normal; padding: 0.5rem; border-radius: 4px; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='#f5f5f5'" onmouseout="this.style.backgroundColor='transparent'">
-                                <input type="checkbox" name="content_idea_ids[]" value="{{ $idea->id }}" {{ in_array($idea->id, old('content_idea_ids', [])) ? 'checked' : '' }}>
-                                {{ $idea->titre }} <span class="badge badge-info">{{ $idea->type }}</span>
-                            </label>
-                        @endforeach
-                    </div>
-                    <p style="margin-top: 0.5rem; font-size: 0.9rem; color: #666;">
-                        <a href="{{ route('content-ideas.create', ['return_to' => route('shootings.create', ['client_id' => $selectedClient, 'date' => $selectedDate])]) }}" target="_blank" style="color: #FF6A3A;">+ Créer une nouvelle idée de contenu</a>
-                    </p>
-                @else
-                    <p style="color: #999;">Aucune idée de contenu disponible. <a href="{{ route('content-ideas.create', ['return_to' => route('shootings.create', ['client_id' => $selectedClient, 'date' => $selectedDate])]) }}" target="_blank" style="color: #FF6A3A;">Créer une idée</a></p>
-                @endif
+                <label for="content_idea_id">Idée de contenu *</label>
+                <div class="modern-select-wrapper">
+                    <select id="content_idea_id" name="content_idea_id" required class="modern-select">
+                        <option value="">Sélectionner une idée de contenu</option>
+                        @if($contentIdeas->count() > 0)
+                            @foreach($contentIdeas as $idea)
+                                <option value="{{ $idea->id }}" {{ old('content_idea_id') == $idea->id ? 'selected' : '' }} data-type="{{ $idea->type }}">
+                                    {{ $idea->titre }} ({{ $idea->type }})
+                                </option>
+                            @endforeach
+                        @endif
+                    </select>
+                    <svg class="select-arrow" width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M2 4l4 4 4-4"></path>
+                    </svg>
+                </div>
+                <p style="margin-top: 0.5rem; font-size: 0.9rem; color: #666;">
+                    <a href="{{ route('content-ideas.create', ['return_to' => route('shootings.create', ['client_id' => $selectedClient, 'date' => $selectedDate])]) }}" target="_blank" style="color: #FF6A3A;">+ Créer une nouvelle idée de contenu</a>
+                </p>
             </div>
             
             @if(request()->has('date'))
@@ -60,7 +63,6 @@
             
             <div class="form-actions">
                 <button type="submit" name="action" value="create" class="btn btn-primary">Créer</button>
-                <button type="submit" name="action" value="create_and_publish" class="btn btn-primary" style="background: linear-gradient(135deg, #FF6A3A 0%, #ff8c5a 100%);">Créer et créer la publication</button>
                 <a href="{{ route('shootings.index') }}" class="btn btn-secondary">Annuler</a>
             </div>
         </form>
@@ -141,4 +143,63 @@
             });
         });
     </script>
+    
+    <style>
+        .modern-select-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+        
+        .modern-select {
+            width: 100%;
+            padding: 0.75rem 2.5rem 0.75rem 1rem;
+            font-size: 1rem;
+            font-weight: 500;
+            color: #303030;
+            background: white;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            appearance: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            outline: none;
+        }
+        
+        .modern-select:hover {
+            border-color: #FF6A3A;
+            box-shadow: 0 0 0 3px rgba(255, 106, 58, 0.1);
+        }
+        
+        .modern-select:focus {
+            border-color: #FF6A3A;
+            box-shadow: 0 0 0 3px rgba(255, 106, 58, 0.15);
+        }
+        
+        .select-arrow {
+            position: absolute;
+            right: 0.75rem;
+            top: 50%;
+            transform: translateY(-50%);
+            pointer-events: none;
+            color: #6c757d;
+            transition: transform 0.2s ease, color 0.2s ease;
+        }
+        
+        .modern-select-wrapper:hover .select-arrow {
+            color: #FF6A3A;
+        }
+        
+        .modern-select:focus + .select-arrow {
+            color: #FF6A3A;
+            transform: translateY(-50%) rotate(180deg);
+        }
+        
+        @media (max-width: 768px) {
+            .modern-select {
+                font-size: 0.9rem;
+                padding: 0.65rem 2.25rem 0.65rem 0.9rem;
+            }
+        }
+    </style>
 @endsection

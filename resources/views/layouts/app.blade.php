@@ -796,9 +796,26 @@
                 form.addEventListener('submit', function() {
                     const submitBtn = this.querySelector('button[type="submit"]');
                     if (submitBtn) {
-                        submitBtn.classList.add('loading');
-                        submitBtn.disabled = true;
-                        submitBtn.innerHTML = 'Chargement...';
+                        // Exclure les formulaires de rapport (téléchargement de fichiers)
+                        if (this.classList.contains('report-form')) {
+                            // Pour les rapports, on met en chargement mais on réinitialise après un délai
+                            const originalHTML = submitBtn.innerHTML;
+                            submitBtn.classList.add('loading');
+                            submitBtn.disabled = true;
+                            submitBtn.innerHTML = 'Chargement...';
+                            
+                            // Réinitialiser le bouton après 3 secondes (temps suffisant pour démarrer le téléchargement)
+                            setTimeout(() => {
+                                submitBtn.classList.remove('loading');
+                                submitBtn.disabled = false;
+                                submitBtn.innerHTML = originalHTML;
+                            }, 3000);
+                        } else {
+                            // Comportement normal pour les autres formulaires
+                            submitBtn.classList.add('loading');
+                            submitBtn.disabled = true;
+                            submitBtn.innerHTML = 'Chargement...';
+                        }
                     }
                 });
             });

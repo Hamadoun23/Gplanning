@@ -22,6 +22,8 @@ class UserSeeder extends Seeder
             ['username' => 'Kmex', 'password' => 'Bigk@2026', 'role' => 'admin'],
             ['username' => 'Ballo', 'password' => 'Hm@ballo2026', 'role' => 'admin'],
             ['username' => 'Cisse', 'password' => '23m@2026', 'role' => 'admin'],
+            ['username' => 'Yaya', 'password' => 'Yalatif@2026', 'role' => 'admin'],
+            ['username' => 'Youba', 'password' => 'Youbs@2026', 'role' => 'admin'],
         ];
 
         // Clients avec leur mapping vers les clients

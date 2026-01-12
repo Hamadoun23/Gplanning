@@ -3,18 +3,17 @@
 @section('title', 'Clients')
 
 @section('content')
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
-        <h2 style="color: #303030;">Clients</h2>
+    <div class="clients-header-responsive">
+        <h2>Clients</h2>
         <a href="{{ route('clients.create') }}" class="btn btn-primary">+ Nouveau client</a>
     </div>
     
     @if($clients->count() > 0)
-        <div class="card">
-            <table>
+        <div class="card clients-table-wrapper">
+            <table class="clients-table">
                 <thead>
                     <tr>
                         <th>Nom de l'entreprise</th>
-                        <th>Idées de contenu</th>
                         <th>Tournages</th>
                         <th>Publications</th>
                         <th>Actions</th>
@@ -23,18 +22,17 @@
                 <tbody>
                     @foreach($clients as $client)
                         <tr>
-                            <td><strong>{{ $client->nom_entreprise }}</strong></td>
-                            <td>{{ $client->content_ideas_count }}</td>
-                            <td>{{ $client->shootings_count }}</td>
-                            <td>{{ $client->publications_count }}</td>
-                            <td>
-                                <a href="{{ route('clients.dashboard', $client) }}" class="btn btn-primary" style="padding: 0.25rem 0.5rem; font-size: 0.85rem; margin-right: 0.5rem;" title="Espace Client">📊 Dashboard</a>
-                                <a href="{{ route('clients.show', $client) }}" class="btn btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.85rem; margin-right: 0.5rem;">Voir</a>
-                                <a href="{{ route('clients.edit', $client) }}" class="btn btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.85rem; margin-right: 0.5rem;">Modifier</a>
-                                <form action="{{ route('clients.destroy', $client) }}" method="POST" style="display: inline;">
+                            <td data-label="Nom de l'entreprise"><strong>{{ $client->nom_entreprise }}</strong></td>
+                            <td data-label="Tournages">{{ $client->shootings_count }}</td>
+                            <td data-label="Publications">{{ $client->publications_count }}</td>
+                            <td data-label="Actions" class="clients-actions-cell">
+                                <a href="{{ route('clients.dashboard', $client) }}" class="btn btn-primary clients-action-btn" title="Espace Client">📊 Dashboard</a>
+                                <a href="{{ route('clients.show', $client) }}" class="btn btn-secondary clients-action-btn">Voir</a>
+                                <a href="{{ route('clients.edit', $client) }}" class="btn btn-secondary clients-action-btn">Modifier</a>
+                                <form action="{{ route('clients.destroy', $client) }}" method="POST" class="clients-delete-form">
                                     @csrf
                                     @method('DELETE')
-                                    <button type="submit" class="btn btn-danger" style="padding: 0.25rem 0.5rem; font-size: 0.85rem;" onclick="return confirm('Êtes-vous sûr de vouloir supprimer ce client ?')">Supprimer</button>
+                                    <button type="submit" class="btn btn-danger clients-action-btn" onclick="return confirm('Êtes-vous sûr de vouloir supprimer ce client ?')">Supprimer</button>
                                 </form>
                             </td>
                         </tr>
@@ -50,4 +48,136 @@
             </div>
         </div>
     @endif
+    
+    <style>
+        .clients-header-responsive {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+        
+        .clients-header-responsive h2 {
+            color: #303030;
+            margin: 0;
+        }
+        
+        .clients-table-wrapper {
+            width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        
+        .clients-table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 600px;
+        }
+        
+        .clients-table th,
+        .clients-table td {
+            padding: 0.75rem 1rem;
+            text-align: left;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 0.9rem;
+            white-space: nowrap;
+        }
+        
+        .clients-table thead th {
+            background-color: #FF6A3A;
+            color: #ffffff;
+            font-weight: 600;
+        }
+        
+        .clients-table tbody tr:nth-child(even) {
+            background-color: #fafafa;
+        }
+        
+        .clients-actions-cell {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.35rem;
+        }
+        
+        .clients-action-btn {
+            padding: 0.25rem 0.6rem;
+            font-size: 0.8rem;
+        }
+        
+        .clients-delete-form {
+            display: inline;
+        }
+        
+        @media (max-width: 768px) {
+            .clients-header-responsive {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .clients-header-responsive .btn {
+                width: 100%;
+                text-align: center;
+            }
+            
+            .clients-table {
+                min-width: 100%;
+            }
+            
+            .clients-table thead {
+                display: none;
+            }
+            
+            .clients-table tbody tr {
+                display: block;
+                margin-bottom: 1rem;
+                border: 1px solid #f0f0f0;
+                border-radius: 8px;
+                background: #ffffff;
+            }
+            
+            .clients-table tbody td {
+                display: flex;
+                justify-content: space-between;
+                padding: 0.5rem 0.75rem;
+                border-bottom: 1px solid #f5f5f5;
+                white-space: normal;
+            }
+            
+            .clients-table tbody td:last-child {
+                border-bottom: none;
+            }
+            
+            .clients-table tbody td::before {
+                content: attr(data-label);
+                font-weight: 600;
+                color: #666;
+                margin-right: 0.75rem;
+                flex-shrink: 0;
+            }
+            
+            .clients-actions-cell {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .clients-action-btn {
+                width: 100%;
+                text-align: center;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .clients-table tbody td {
+                padding: 0.4rem 0.6rem;
+                font-size: 0.85rem;
+            }
+            
+            .clients-action-btn {
+                font-size: 0.8rem;
+                padding: 0.3rem 0.5rem;
+            }
+        }
+    </style>
 @endsection

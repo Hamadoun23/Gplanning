@@ -54,13 +54,17 @@ Route::middleware(['auth'])->group(function () {
 
         // Clients (CRUD) - réservé aux admins
         Route::resource('clients', ClientController::class);
-        Route::get('clients/{client}/generate-report', [ClientController::class, 'generateReport'])->name('clients.generate-report');
     });
 
     // Dashboard client (accessible aux clients pour leur propre client)
     Route::get('clients/{client}/dashboard', [ClientController::class, 'dashboard'])
         ->middleware('client.access')
         ->name('clients.dashboard');
+        
+    // Génération de rapport côté client (accessible uniquement pour le client concerné)
+    Route::get('clients/{client}/generate-report', [ClientController::class, 'generateReport'])
+        ->middleware('client.access')
+        ->name('clients.generate-report');
 
     // Routes réservées aux admins uniquement
     Route::middleware(['admin'])->group(function () {

@@ -88,9 +88,11 @@ class ShootingController extends Controller
         $validated = $request->validate([
             'client_id' => ['required', 'exists:clients,id'],
             'date' => ['required', 'date'],
-            'content_idea_ids' => ['required', 'array', 'min:1'],
-            'content_idea_ids.*' => ['exists:content_ideas,id'],
+            'content_idea_id' => ['required', 'exists:content_ideas,id'],
             'description' => ['nullable', 'string'],
+        ], [
+            'content_idea_id.required' => 'L\'idée de contenu est obligatoire.',
+            'content_idea_id.exists' => 'L\'idée de contenu sélectionnée n\'existe pas.',
         ]);
 
         $shooting = Shooting::create([
@@ -99,7 +101,7 @@ class ShootingController extends Controller
             'description' => $validated['description'] ?? null,
         ]);
 
-        $shooting->contentIdeas()->attach($validated['content_idea_ids']);
+        $shooting->contentIdeas()->attach($validated['content_idea_id']);
 
         // Redirection intelligente : si on vient d'un calendrier avec une date, on y retourne
         if ($request->has('return_to_calendar')) {
@@ -151,18 +153,15 @@ class ShootingController extends Controller
         $validated = $request->validate([
             'client_id' => ['required', 'exists:clients,id'],
             'date' => ['required', 'date'],
-            'content_idea_ids' => ['required', 'array', 'min:1'],
-            'content_idea_ids.*' => ['exists:content_ideas,id'],
+            'content_idea_id' => ['required', 'exists:content_ideas,id'],
             'description' => ['nullable', 'string'],
         ], [
             'client_id.required' => 'Le client est obligatoire.',
             'client_id.exists' => 'Le client sélectionné n\'existe pas.',
             'date.required' => 'La date est obligatoire.',
             'date.date' => 'La date doit être une date valide.',
-            'content_idea_ids.required' => 'Au moins une idée de contenu est obligatoire.',
-            'content_idea_ids.array' => 'Les idées de contenu doivent être un tableau.',
-            'content_idea_ids.min' => 'Au moins une idée de contenu est obligatoire.',
-            'content_idea_ids.*.exists' => 'Une ou plusieurs idées de contenu sélectionnées n\'existent pas.',
+            'content_idea_id.required' => 'L\'idée de contenu est obligatoire.',
+            'content_idea_id.exists' => 'L\'idée de contenu sélectionnée n\'existe pas.',
         ]);
 
         $shooting->update([
@@ -171,7 +170,7 @@ class ShootingController extends Controller
             'description' => $validated['description'] ?? null,
         ]);
 
-        $shooting->contentIdeas()->sync($validated['content_idea_ids']);
+        $shooting->contentIdeas()->sync([$validated['content_idea_id']]);
 
         return redirect()->route('shootings.show', $shooting)
             ->with('success', 'Tournage modifié avec succès.');
@@ -237,8 +236,11 @@ class ShootingController extends Controller
             'status' => 'pending',
         ]);
 
-        // Copier les idées de contenu associées
-        $newShooting->contentIdeas()->attach($shooting->contentIdeas->pluck('id'));
+        // Copier l'idée de contenu associée (première si plusieurs)
+        $firstContentIdea = $shooting->contentIdeas->first();
+        if ($firstContentIdea) {
+            $newShooting->contentIdeas()->attach($firstContentIdea->id);
+        }
 
         // Marquer l'ancien comme annulé
         $shooting->status = 'cancelled';
