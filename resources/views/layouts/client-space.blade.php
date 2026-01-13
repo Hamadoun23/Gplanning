@@ -8,9 +8,22 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Gplanning">
-    <link rel="icon" type="image/jpeg" href="{{ asset('Icones.jpg') }}">
-    <link rel="apple-touch-icon" href="{{ asset('Icones.jpg') }}">
+    <!-- Android / Huawei PWA -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="application-name" content="Gplanning">
+    <meta name="msapplication-TileColor" content="#FF6A3A">
+    <meta name="msapplication-TileImage" content="{{ asset('icon-144x144.png') }}">
+    <link rel="icon" type="image/png" sizes="192x192" href="{{ asset('icon-192x192.png') }}">
+    <link rel="icon" type="image/png" sizes="512x512" href="{{ asset('icon-512x512.png') }}">
+    <link rel="apple-touch-icon" sizes="180x180" href="{{ asset('icon-192x192.png') }}">
+    <link rel="apple-touch-icon" sizes="152x152" href="{{ asset('icon-152x152.png') }}">
+    <link rel="apple-touch-icon" sizes="144x144" href="{{ asset('icon-144x144.png') }}">
+    <link rel="apple-touch-icon" sizes="128x128" href="{{ asset('icon-128x128.png') }}">
+    <link rel="apple-touch-icon" sizes="96x96" href="{{ asset('icon-96x96.png') }}">
+    <link rel="apple-touch-icon" sizes="72x72" href="{{ asset('icon-72x72.png') }}">
     <link rel="manifest" href="{{ asset('manifest.json') }}">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="application-name" content="Gplanning">
     <title>@yield('title', 'Espace Client') - Gda Com</title>
     <style>
         * {
