@@ -21,9 +21,7 @@
     <link rel="apple-touch-icon" sizes="128x128" href="{{ asset('icon-128x128.png') }}">
     <link rel="apple-touch-icon" sizes="96x96" href="{{ asset('icon-96x96.png') }}">
     <link rel="apple-touch-icon" sizes="72x72" href="{{ asset('icon-72x72.png') }}">
-    <link rel="manifest" href="{{ asset('manifest.json') }}">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="application-name" content="Gplanning">
+    <link rel="manifest" href="{{ url('manifest.json') }}">
     <title>@yield('title', 'Gplanning') - Gda Com</title>
     <style>
         * {

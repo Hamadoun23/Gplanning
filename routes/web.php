@@ -36,6 +36,69 @@ Route::get('/', function () {
     return redirect()->route('login');
 });
 
+// Route pour servir le manifest.json avec URLs absolues (pour Android)
+Route::get('/manifest.json', function () {
+    $baseUrl = url('/');
+    $manifest = [
+        'name' => 'Gplanning - Gda Com',
+        'short_name' => 'Gplanning',
+        'description' => 'Application de gestion de planning pour Gda Com',
+        'start_url' => $baseUrl . '/',
+        'scope' => $baseUrl . '/',
+        'display' => 'standalone',
+        'background_color' => '#ffffff',
+        'theme_color' => '#FF6A3A',
+        'orientation' => 'portrait-primary',
+        'dir' => 'ltr',
+        'lang' => 'fr',
+        'icons' => [
+            [
+                'src' => $baseUrl . '/icon-192x192.png',
+                'sizes' => '192x192',
+                'type' => 'image/png',
+                'purpose' => 'any'
+            ],
+            [
+                'src' => $baseUrl . '/icon-512x512.png',
+                'sizes' => '512x512',
+                'type' => 'image/png',
+                'purpose' => 'any'
+            ],
+            [
+                'src' => $baseUrl . '/icon-192x192.png',
+                'sizes' => '192x192',
+                'type' => 'image/png',
+                'purpose' => 'maskable'
+            ],
+            [
+                'src' => $baseUrl . '/icon-512x512.png',
+                'sizes' => '512x512',
+                'type' => 'image/png',
+                'purpose' => 'maskable'
+            ]
+        ],
+        'categories' => ['productivity', 'business'],
+        'shortcuts' => [
+            [
+                'name' => 'Dashboard',
+                'short_name' => 'Dashboard',
+                'description' => 'Accéder au tableau de bord',
+                'url' => $baseUrl . '/dashboard',
+                'icons' => [
+                    [
+                        'src' => $baseUrl . '/icon-96x96.png',
+                        'sizes' => '96x96'
+                    ]
+                ]
+            ]
+        ]
+    ];
+    
+    return response()->json($manifest)
+        ->header('Content-Type', 'application/manifest+json')
+        ->header('Cache-Control', 'public, max-age=3600');
+});
+
 // Routes protégées par authentification
 Route::middleware(['auth'])->group(function () {
     // Profile
