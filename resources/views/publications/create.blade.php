@@ -25,6 +25,11 @@
         <form action="{{ route('publications.create') }}" method="GET" style="display: none;" id="client-form">
             <input type="hidden" name="client_id" id="hidden_client_id">
             <input type="hidden" name="date" value="{{ old('date', $selectedDate) }}">
+            @if(request()->has('return_to_dashboard'))
+                <input type="hidden" name="return_to_dashboard" value="1">
+                <input type="hidden" name="return_month" value="{{ request('return_month') }}">
+                <input type="hidden" name="return_year" value="{{ request('return_year') }}">
+            @endif
         </form>
         
         <form action="{{ route('publications.store') }}" method="POST">
@@ -66,26 +71,13 @@
                 </p>
             </div>
             
-            @if(request()->has('date'))
+            @if(request()->has('return_to_dashboard'))
+                <input type="hidden" name="return_to_dashboard" value="1">
+                <input type="hidden" name="return_month" value="{{ request('return_month') }}">
+                <input type="hidden" name="return_year" value="{{ request('return_year') }}">
+            @elseif(request()->has('date'))
                 <input type="hidden" name="return_to_calendar" value="1">
             @endif
-            
-            <div class="form-group">
-                <label for="shooting_id">Tournage lié (optionnel)</label>
-                <select id="shooting_id" name="shooting_id">
-                    <option value="">Aucun tournage</option>
-                    @if($selectedClient && $shootings->count() > 0)
-                        @foreach($shootings as $shooting)
-                            <option value="{{ $shooting->id }}" {{ old('shooting_id', request('shooting_id')) == $shooting->id ? 'selected' : '' }}>
-                                {{ $shooting->date->format('d/m/Y') }}
-                            </option>
-                        @endforeach
-                    @endif
-                </select>
-                <p style="margin-top: 0.5rem; font-size: 0.85rem; color: #666;">
-                    Seuls les tournages disponibles (non liés à une publication) sont affichés.
-                </p>
-            </div>
             
             <div class="form-actions">
                 <button type="submit" class="btn btn-primary">Créer</button>

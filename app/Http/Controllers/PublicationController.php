@@ -195,25 +195,9 @@ class PublicationController extends Controller
         $clients = Client::orderBy('nom_entreprise')->get();
         $selectedClient = $request->get('client_id');
         $selectedDate = $request->get('date');
-        $selectedShootingId = $request->get('shooting_id');
 
         // Toutes les idées de contenu sont disponibles pour tous les clients
         $contentIdeas = ContentIdea::orderBy('titre')->get();
-
-        // Récupérer uniquement les tournages disponibles (qui n'ont pas déjà de publication liée)
-        // ou le tournage sélectionné si fourni
-        $shootings = $selectedClient
-            ? Shooting::where('client_id', $selectedClient)
-                ->where('date', '<=', $selectedDate ?? now())
-                ->where(function($query) use ($selectedShootingId) {
-                    $query->whereDoesntHave('publications');
-                    if ($selectedShootingId) {
-                        $query->orWhere('id', $selectedShootingId);
-                    }
-                })
-                ->orderBy('date', 'desc')
-                ->get()
-            : collect();
 
         // Vérifications pour afficher les avertissements
         $warnings = [];
@@ -237,7 +221,7 @@ class PublicationController extends Controller
             }
         }
 
-        return view('publications.create', compact('clients', 'selectedClient', 'selectedDate', 'contentIdeas', 'shootings', 'warnings'));
+        return view('publications.create', compact('clients', 'selectedClient', 'selectedDate', 'contentIdeas', 'warnings'));
     }
 
     /**
@@ -280,6 +264,15 @@ class PublicationController extends Controller
         $message = 'Publication créée avec succès.';
         if (!empty($warnings)) {
             $message .= ' Avertissements : ' . implode(' ', $warnings);
+        }
+
+        // Redirection vers le dashboard si on vient du planning du dashboard
+        if ($request->has('return_to_dashboard')) {
+            $month = $request->get('return_month');
+            $year = $request->get('return_year');
+            return redirect()->route('dashboard', ['month' => $month, 'year' => $year])
+                ->with('success', $message)
+                ->with('warnings', $warnings);
         }
 
         // Redirection intelligente : si on vient d'un calendrier avec une date, on y retourne

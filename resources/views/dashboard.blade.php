@@ -699,12 +699,12 @@
         
         <div class="stat-card">
             <h3>Tournages ce mois</h3>
-            <div class="value">{{ $stats['shootings_this_month'] }}</div>
+            <div class="value" id="shootings-count">{{ $stats['shootings_this_month'] }}</div>
         </div>
         
         <div class="stat-card">
             <h3>Publications ce mois</h3>
-            <div class="value">{{ $stats['publications_this_month'] }}</div>
+            <div class="value" id="publications-count">{{ $stats['publications_this_month'] }}</div>
         </div>
     </div>
     
@@ -1358,9 +1358,12 @@
         function displayShootings(shootings, date) {
             const container = document.getElementById('shootingsList');
             const addLink = document.getElementById('addShootingLink');
-            // Construire l'URL avec le paramètre date
+            // Récupérer le mois et l'année actuels du planning
+            const currentMonth = parseInt(document.getElementById('month').value);
+            const currentYear = parseInt(document.getElementById('year').value);
+            // Construire l'URL avec le paramètre date, month et year
             const baseUrl = addLink.getAttribute('href').split('?')[0];
-            const shootingCreateUrl = `${baseUrl}?date=${encodeURIComponent(date)}`;
+            const shootingCreateUrl = `${baseUrl}?date=${encodeURIComponent(date)}&return_month=${currentMonth}&return_year=${currentYear}&return_to_dashboard=1`;
             addLink.href = shootingCreateUrl;
             addLink.style.pointerEvents = 'auto';
             addLink.style.cursor = 'pointer';
@@ -1390,8 +1393,8 @@
                     statusText = 'À venir';
                 }
                 
-                const contentIdeasText = shooting.content_ideas.length > 0 
-                    ? `${shooting.content_ideas.length} idée(s) de contenu` 
+                const contentIdeasText = shooting.content_ideas && shooting.content_ideas.length > 0 
+                    ? shooting.content_ideas.map(ci => ci.titre || ci).join(', ')
                     : 'Aucune idée de contenu';
                 
                 return `
@@ -1419,9 +1422,12 @@
         function displayPublications(publications, date) {
             const container = document.getElementById('publicationsList');
             const addLink = document.getElementById('addPublicationLink');
-            // Construire l'URL avec le paramètre date
+            // Récupérer le mois et l'année actuels du planning
+            const currentMonth = parseInt(document.getElementById('month').value);
+            const currentYear = parseInt(document.getElementById('year').value);
+            // Construire l'URL avec le paramètre date, month et year
             const baseUrl = addLink.getAttribute('href').split('?')[0];
-            const publicationCreateUrl = `${baseUrl}?date=${encodeURIComponent(date)}`;
+            const publicationCreateUrl = `${baseUrl}?date=${encodeURIComponent(date)}&return_month=${currentMonth}&return_year=${currentYear}&return_to_dashboard=1`;
             addLink.href = publicationCreateUrl;
             addLink.style.pointerEvents = 'auto';
             addLink.style.cursor = 'pointer';
@@ -1451,10 +1457,6 @@
                     statusText = 'À venir';
                 }
                 
-                const shootingText = publication.shooting_id 
-                    ? `Tournage lié du ${publication.shooting_date}` 
-                    : 'Aucun tournage lié';
-                
                 return `
                     <div class="event-item">
                         <div class="event-item-info">
@@ -1463,7 +1465,7 @@
                                 <span class="event-status-badge ${statusClass}">${statusText}</span>
                             </div>
                             <div class="event-item-details">
-                                ${publication.content_idea_titre || 'Aucune idée de contenu'} • ${shootingText}
+                                ${publication.content_idea_titre || 'Aucune idée de contenu'}
                                 ${publication.description ? ' • ' + publication.description.substring(0, 50) + (publication.description.length > 50 ? '...' : '') : ''}
                             </div>
                         </div>
@@ -1615,6 +1617,18 @@
                     // Mettre à jour les valeurs des selects
                     document.getElementById('month').value = month;
                     document.getElementById('year').value = year;
+                    
+                    // Mettre à jour les statistiques si disponibles
+                    if (data.stats) {
+                        const shootingsCount = document.getElementById('shootings-count');
+                        const publicationsCount = document.getElementById('publications-count');
+                        if (shootingsCount) {
+                            shootingsCount.textContent = data.stats.shootings_this_month;
+                        }
+                        if (publicationsCount) {
+                            publicationsCount.textContent = data.stats.publications_this_month;
+                        }
+                    }
                     
                     // Réinitialiser les événements de clic sur les cellules
                     initCalendarCellEvents();

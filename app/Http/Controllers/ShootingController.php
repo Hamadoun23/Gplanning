@@ -103,6 +103,14 @@ class ShootingController extends Controller
 
         $shooting->contentIdeas()->attach($validated['content_idea_id']);
 
+        // Redirection vers le dashboard si on vient du planning du dashboard
+        if ($request->has('return_to_dashboard')) {
+            $month = $request->get('return_month');
+            $year = $request->get('return_year');
+            return redirect()->route('dashboard', ['month' => $month, 'year' => $year])
+                ->with('success', 'Tournage créé avec succès.');
+        }
+
         // Redirection intelligente : si on vient d'un calendrier avec une date, on y retourne
         if ($request->has('return_to_calendar')) {
             $date = Carbon::parse($validated['date']);

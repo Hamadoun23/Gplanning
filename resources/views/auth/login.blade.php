@@ -846,9 +846,8 @@
                     @enderror
                 </div>
                 
-                <div class="remember-me">
-                    <input type="checkbox" id="remember_me" name="remember">
-                    <label for="remember_me">Se souvenir de moi</label>
+                <div class="remember-me" style="visibility: hidden; height: 1.5rem;">
+                    <!-- Espace réservé pour maintenir la mise en page -->
                 </div>
                 
                 <button type="submit" class="btn-login" id="loginBtn">

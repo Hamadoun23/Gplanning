@@ -9,6 +9,11 @@
         <form action="{{ route('shootings.create') }}" method="GET" style="display: none;" id="client-form">
             <input type="hidden" name="client_id" id="hidden_client_id">
             <input type="hidden" name="date" value="{{ old('date', $selectedDate) }}">
+            @if(request()->has('return_to_dashboard'))
+                <input type="hidden" name="return_to_dashboard" value="1">
+                <input type="hidden" name="return_month" value="{{ request('return_month') }}">
+                <input type="hidden" name="return_year" value="{{ request('return_year') }}">
+            @endif
         </form>
         
         <form action="{{ route('shootings.store') }}" method="POST">
@@ -57,7 +62,11 @@
                 </p>
             </div>
             
-            @if(request()->has('date'))
+            @if(request()->has('return_to_dashboard'))
+                <input type="hidden" name="return_to_dashboard" value="1">
+                <input type="hidden" name="return_month" value="{{ request('return_month') }}">
+                <input type="hidden" name="return_year" value="{{ request('return_year') }}">
+            @elseif(request()->has('date'))
                 <input type="hidden" name="return_to_calendar" value="1">
             @endif
             

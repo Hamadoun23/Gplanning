@@ -72,11 +72,11 @@ class DashboardController extends Controller
         
         $stats = [
             'clients_count' => Client::count(),
-            'shootings_this_month' => Shooting::whereMonth('date', $now->month)
-                ->whereYear('date', $now->year)
+            'shootings_this_month' => Shooting::whereMonth('date', $month)
+                ->whereYear('date', $year)
                 ->count(),
-            'publications_this_month' => Publication::whereMonth('date', $now->month)
-                ->whereYear('date', $now->year)
+            'publications_this_month' => Publication::whereMonth('date', $month)
+                ->whereYear('date', $year)
                 ->count(),
             'upcoming_shootings' => Shooting::where('date', '>=', $now->toDateString())
                 ->orderBy('date', 'asc')
@@ -126,6 +126,16 @@ class DashboardController extends Controller
         // Construire le calendrier combiné
         $calendar = $this->buildCombinedCalendar($startDate, $shootings, $publications);
         
+        // Calculer les stats pour le mois sélectionné
+        $stats = [
+            'shootings_this_month' => Shooting::whereMonth('date', $month)
+                ->whereYear('date', $year)
+                ->count(),
+            'publications_this_month' => Publication::whereMonth('date', $month)
+                ->whereYear('date', $year)
+                ->count(),
+        ];
+        
         $months = ['', 'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
         
         return response()->json([
@@ -136,6 +146,7 @@ class DashboardController extends Controller
             'prevYear' => $startDate->copy()->subMonth()->year,
             'nextMonth' => $startDate->copy()->addMonth()->month,
             'nextYear' => $startDate->copy()->addMonth()->year,
+            'stats' => $stats,
         ]);
     }
 
