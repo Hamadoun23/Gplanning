@@ -7,10 +7,10 @@
     <meta name="theme-color" content="#FF6A3A">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Gplanning">
+    <meta name="apple-mobile-web-app-title" content="Planning Gda">
     <!-- Android / Huawei PWA -->
     <meta name="mobile-web-app-capable" content="yes">
-    <meta name="application-name" content="Gplanning">
+    <meta name="application-name" content="Planning Gda">
     <meta name="msapplication-TileColor" content="#FF6A3A">
     <meta name="msapplication-TileImage" content="{{ asset('icon-144x144.png') }}">
     <link rel="icon" type="image/png" sizes="192x192" href="{{ asset('icon-192x192.png') }}">
@@ -22,7 +22,7 @@
     <link rel="apple-touch-icon" sizes="96x96" href="{{ asset('icon-96x96.png') }}">
     <link rel="apple-touch-icon" sizes="72x72" href="{{ asset('icon-72x72.png') }}">
     <link rel="manifest" href="{{ url('manifest.json') }}">
-    <title>Gplanning | Gda Com</title>
+    <title>Planning Gda | Gda Com</title>
     <style>
         * {
             margin: 0;
@@ -777,8 +777,8 @@
     <div class="login-container">
         <div class="login-card">
             <div class="logo-section">
-                <img src="{{ asset('logo.png') }}" alt="Gplanning Logo">
-                <h1>Gplanning</h1>
+                <img src="{{ asset('logo.png') }}" alt="Planning Gda Logo">
+                <h1>Planning Gda</h1>
                 <p>Gestion des plannings - Gda Com</p>
         </div>
 

@@ -7,10 +7,10 @@
     <meta name="theme-color" content="#FF6A3A">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Gplanning">
+    <meta name="apple-mobile-web-app-title" content="Planning Gda">
     <!-- Android / Huawei PWA -->
     <meta name="mobile-web-app-capable" content="yes">
-    <meta name="application-name" content="Gplanning">
+    <meta name="application-name" content="Planning Gda">
     <meta name="msapplication-TileColor" content="#FF6A3A">
     <meta name="msapplication-TileImage" content="{{ asset('icon-144x144.png') }}">
     <link rel="icon" type="image/png" sizes="192x192" href="{{ asset('icon-192x192.png') }}">
@@ -223,9 +223,9 @@
     <header>
         <div class="container">
             <div class="logo-container">
-                <img src="{{ asset('logo.png') }}" alt="Gplanning Logo">
+                <img src="{{ asset('logo.png') }}" alt="Planning Gda Logo">
                 <div>
-                    <h1>Gplanning</h1>
+                    <h1>Planning Gda</h1>
                     <p>Espace Client - Gda Com</p>
                 </div>
             </div>
