@@ -19,8 +19,8 @@ class EnsureClientAccess
     {
         $user = Auth::user();
         
-        // Si l'utilisateur est un admin, il a accès à tout
-        if ($user->isAdmin()) {
+        // Si l'utilisateur est un admin ou team, il a accès à tout
+        if ($user->isAdmin() || $user->isTeam()) {
             return $next($request);
         }
         

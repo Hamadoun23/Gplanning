@@ -37,7 +37,51 @@ class PublicationController extends Controller
 
         $clients = Client::orderBy('nom_entreprise')->get();
 
-        return view('publications.index', compact('calendar', 'publications', 'clients', 'month', 'year', 'startDate'));
+        return $this->viewForRole('publications.index', compact('calendar', 'publications', 'clients', 'month', 'year', 'startDate'));
+    }
+
+    /**
+     * Récupère les données du calendrier via AJAX
+     */
+    public function getCalendarData(Request $request)
+    {
+        try {
+            $month = (int) $request->get('month', now()->month);
+            $year = (int) $request->get('year', now()->year);
+
+            $startDate = Carbon::create($year, $month, 1);
+            $endDate = $startDate->copy()->endOfMonth();
+
+            $publications = Publication::whereBetween('date', [$startDate->format('Y-m-d'), $endDate->format('Y-m-d')])
+                ->with(['client', 'contentIdea', 'shooting'])
+                ->orderBy('date')
+                ->get()
+                ->groupBy(function($publication) {
+                    return Carbon::parse($publication->date)->format('Y-m-d');
+                });
+
+            $calendar = $this->buildCalendar($startDate, $publications);
+
+            $months = ['', 'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
+            
+            $isTeamReadOnly = auth()->check() && auth()->user()->isTeam();
+
+            return response()->json([
+                'html' => view('publications.partials.calendar-table', compact('calendar', 'isTeamReadOnly'))->render(),
+                'month' => $month,
+                'year' => $year,
+                'monthName' => $months[$month],
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Erreur getCalendarData: ' . $e->getMessage());
+            return response()->json([
+                'error' => $e->getMessage(),
+                'html' => '<p style="color: #dc3545; padding: 2rem; text-align: center;">Erreur lors du chargement du calendrier: ' . $e->getMessage() . '</p>',
+                'month' => $request->get('month', now()->month),
+                'year' => $request->get('year', now()->year),
+                'monthName' => 'Erreur',
+            ], 500);
+        }
     }
 
     /**
@@ -58,10 +102,17 @@ class PublicationController extends Controller
                 // Vérifier les avertissements pour chaque publication
                 $warnings = [];
                 foreach ($dayPublications as $pub) {
-                    $date = Carbon::parse($pub->date);
-                    $dayOfWeek = $this->getDayOfWeekInFrench($date);
-                    if ($pub->client->isDayNotRecommended($dayOfWeek)) {
-                        $warnings[] = $pub->id;
+                    try {
+                        if ($pub->client) {
+                            $date = Carbon::parse($pub->date);
+                            $dayOfWeek = $this->getDayOfWeekInFrench($date);
+                            if ($pub->client->isDayNotRecommended($dayOfWeek)) {
+                                $warnings[] = $pub->id;
+                            }
+                        }
+                    } catch (\Exception $e) {
+                        // Ignorer les erreurs pour une publication individuelle
+                        continue;
                     }
                 }
                 
@@ -159,7 +210,7 @@ class PublicationController extends Controller
                         $cellContent[] = '   Statut: ' . $statusText;
                         $cellContent[] = '   Idée: ' . $publication->contentIdea->titre;
                         if ($publication->shooting) {
-                            $cellContent[] = '   Tournage lié: ' . $publication->shooting->date->format('d/m/Y');
+                            $cellContent[] = '   Tournage lié: ' . $publication->shooting->date->format('d/m/Y H:i');
                         }
                         
                         // Avertissement si jour non recommandé
@@ -212,7 +263,7 @@ class PublicationController extends Controller
                 ->first();
 
             if ($existingPublication) {
-                $warnings[] = 'Une publication existe déjà pour ce client le ' . $date->format('d/m/Y');
+                $warnings[] = 'Une publication existe déjà pour ce client le ' . $date->format('d/m/Y H:i');
             }
 
             // Vérifier si le jour est non recommandé
@@ -233,7 +284,6 @@ class PublicationController extends Controller
             'client_id' => ['required', 'exists:clients,id'],
             'date' => ['required', 'date'],
             'content_idea_id' => ['required', 'exists:content_ideas,id'],
-            'shooting_id' => ['nullable', 'exists:shootings,id'],
             'description' => ['nullable', 'string'],
         ]);
 
@@ -259,31 +309,25 @@ class PublicationController extends Controller
         }
 
         // Créer la publication même s'il y a des avertissements
-        $publication = Publication::create($validated);
+        // Utiliser la date parsée avec Carbon pour s'assurer que l'heure est bien incluse
+        $publication = Publication::create([
+            'client_id' => $validated['client_id'],
+            'date' => $date,
+            'content_idea_id' => $validated['content_idea_id'],
+            'description' => $validated['description'] ?? null,
+        ]);
 
         $message = 'Publication créée avec succès.';
         if (!empty($warnings)) {
             $message .= ' Avertissements : ' . implode(' ', $warnings);
         }
 
-        // Redirection vers le dashboard si on vient du planning du dashboard
-        if ($request->has('return_to_dashboard')) {
-            $month = $request->get('return_month');
-            $year = $request->get('return_year');
-            return redirect()->route('dashboard', ['month' => $month, 'year' => $year])
-                ->with('success', $message)
-                ->with('warnings', $warnings);
-        }
-
-        // Redirection intelligente : si on vient d'un calendrier avec une date, on y retourne
-        if ($request->has('return_to_calendar')) {
-            $date = Carbon::parse($validated['date']);
-            return redirect()->route('publications.index', ['month' => $date->month, 'year' => $date->year])
-                ->with('success', $message)
-                ->with('warnings', $warnings);
-        }
-
-        return redirect()->route('publications.show', $publication)
+        // Toujours rediriger vers le dashboard principal
+        $date = Carbon::parse($validated['date']);
+        $month = $request->get('return_month', $date->month);
+        $year = $request->get('return_year', $date->year);
+        
+        return redirect()->route('dashboard', ['month' => $month, 'year' => $year])
             ->with('success', $message)
             ->with('warnings', $warnings);
     }
@@ -294,29 +338,30 @@ class PublicationController extends Controller
     public function show(Publication $publication)
     {
         $publication->load(['client', 'contentIdea', 'shooting']);
-        return view('publications.show', compact('publication'));
+        return $this->viewForRole('publications.show', compact('publication'));
     }
 
     /**
      * Affiche le formulaire d'édition
      */
-    public function edit(Publication $publication)
+    public function edit(Request $request, Publication $publication)
     {
+        // Effacer complètement la session old() pour forcer l'utilisation des données de la DB
+        $request->session()->forget('_old_input');
+        
+        // Recharger la publication depuis la base de données pour s'assurer d'avoir les données à jour
+        $publication->refresh();
+        
+        // Charger toutes les relations nécessaires
         $publication->load(['client', 'contentIdea', 'shooting']);
         $clients = Client::orderBy('nom_entreprise')->get();
         // Toutes les idées de contenu sont disponibles pour tous les clients
         $contentIdeas = ContentIdea::orderBy('titre')->get();
-        // Récupérer uniquement les tournages disponibles (qui n'ont pas déjà de publication liée)
-        // ou le tournage actuellement lié à cette publication
-        $shootings = Shooting::where('client_id', $publication->client_id)
-            ->where(function($query) use ($publication) {
-                $query->whereDoesntHave('publications')
-                      ->orWhere('id', $publication->shooting_id);
-            })
-            ->orderBy('date', 'desc')
-            ->get();
 
-        return view('publications.edit', compact('publication', 'clients', 'contentIdeas', 'shootings'));
+        // Initialiser les warnings si nécessaire
+        $warnings = [];
+
+        return view('publications.edit', compact('publication', 'clients', 'contentIdeas', 'warnings'));
     }
 
     /**
@@ -328,7 +373,6 @@ class PublicationController extends Controller
             'client_id' => ['required', 'exists:clients,id'],
             'date' => ['required', 'date'],
             'content_idea_id' => ['required', 'exists:content_ideas,id'],
-            'shooting_id' => ['nullable', 'exists:shootings,id'],
             'description' => ['nullable', 'string'],
         ], [
             'client_id.required' => 'Le client est obligatoire.',
@@ -337,7 +381,6 @@ class PublicationController extends Controller
             'date.date' => 'La date doit être une date valide.',
             'content_idea_id.required' => 'L\'idée de contenu est obligatoire.',
             'content_idea_id.exists' => 'L\'idée de contenu sélectionnée n\'existe pas.',
-            'shooting_id.exists' => 'Le tournage sélectionné n\'existe pas.',
         ]);
 
         // Vérifications (avertissements mais pas de blocage)
@@ -362,14 +405,25 @@ class PublicationController extends Controller
             $warnings[] = 'Ce jour (' . ucfirst($dayOfWeek) . ') est non recommandé pour la publication pour ce client.';
         }
 
-        $publication->update($validated);
+        // Utiliser la date parsée avec Carbon pour s'assurer que l'heure est bien incluse
+        $publication->update([
+            'client_id' => $validated['client_id'],
+            'date' => $date,
+            'content_idea_id' => $validated['content_idea_id'],
+            'description' => $validated['description'] ?? null,
+        ]);
 
         $message = 'Publication modifiée avec succès.';
         if (!empty($warnings)) {
             $message .= ' Avertissements : ' . implode(' ', $warnings);
         }
 
-        return redirect()->route('publications.show', $publication)
+        // Toujours rediriger vers le dashboard principal
+        $date = Carbon::parse($validated['date']);
+        $month = $request->get('return_month', $date->month);
+        $year = $request->get('return_year', $date->year);
+        
+        return redirect()->route('dashboard', ['month' => $month, 'year' => $year])
             ->with('success', $message)
             ->with('warnings', $warnings);
     }
@@ -379,16 +433,14 @@ class PublicationController extends Controller
      */
     public function destroy(Request $request, Publication $publication)
     {
-        $clientId = $publication->client_id;
+        $date = $publication->date;
+        $month = $request->get('return_month', $date->month);
+        $year = $request->get('return_year', $date->year);
+        
         $publication->delete();
 
-        // Si on vient de la page du client, on y retourne
-        if ($request->has('return_to_client')) {
-            return redirect()->route('clients.show', $clientId)
-                ->with('success', 'Publication supprimée avec succès.');
-        }
-
-        return redirect()->route('publications.index')
+        // Toujours rediriger vers le dashboard principal
+        return redirect()->route('dashboard', ['month' => $month, 'year' => $year])
             ->with('success', 'Publication supprimée avec succès.');
     }
 
@@ -398,21 +450,66 @@ class PublicationController extends Controller
     public function toggleStatus(Request $request, Publication $publication)
     {
         $status = $request->input('status', 'completed');
+        $statusReason = $request->input('status_reason');
         
-        if (!in_array($status, ['pending', 'completed', 'cancelled'])) {
+        // Statuts qui nécessitent une description obligatoire
+        $statusesRequiringReason = ['not_realized', 'cancelled', 'rescheduled'];
+        
+        if (!in_array($status, ['pending', 'completed', 'not_realized', 'cancelled', 'rescheduled'])) {
             return back()->withErrors(['status' => 'Le statut sélectionné est invalide.']);
         }
 
+        // Vérifier que la description est fournie pour les statuts qui le nécessitent
+        if (in_array($status, $statusesRequiringReason) && empty($statusReason)) {
+            return back()->withErrors(['status_reason' => 'Une description est obligatoire pour ce statut.']);
+        }
+
+        // Si le statut est "rescheduled", modifier directement la date de la publication existante
+        if ($status === 'rescheduled') {
+            // Vérifier que la date est fournie
+            if (!$request->has('reschedule_date') || empty($request->input('reschedule_date'))) {
+                return back()->withErrors(['reschedule_date' => 'La nouvelle date est obligatoire pour reprogrammer une publication.']);
+            }
+            
+            $newDate = $request->input('reschedule_date');
+            
+            // Valider la date
+            $validated = $request->validate([
+                'reschedule_date' => ['required', 'date'],
+            ], [
+                'reschedule_date.required' => 'La nouvelle date est obligatoire.',
+                'reschedule_date.date' => 'La date doit être une date valide.',
+            ]);
+            
+            // Sauvegarder l'ancienne date pour la raison
+            $oldDate = $publication->date->format('d/m/Y H:i');
+            
+            // Mettre à jour la publication avec la nouvelle date et le statut
+            $publication->date = $newDate;
+            $publication->status = 'pending'; // Remettre en attente avec la nouvelle date
+            $publication->status_reason = $statusReason . ' - Ancienne date : ' . $oldDate . ' - Nouvelle date : ' . \Carbon\Carbon::parse($newDate)->format('d/m/Y H:i');
+            $publication->save();
+            
+            // Rester sur la page de la publication modifiée
+            return redirect()->route('publications.show', $publication)
+                ->with('success', 'Publication reprogrammée avec succès. La date a été modifiée.');
+        }
+
+        // Pour les autres statuts, mettre à jour normalement
         $publication->status = $status;
+        $publication->status_reason = in_array($status, $statusesRequiringReason) ? $statusReason : null;
         $publication->save();
 
         $messages = [
             'completed' => 'Publication marquée comme complétée.',
             'pending' => 'Publication marquée comme en attente.',
-            'cancelled' => 'Publication marquée comme échec/annulée.',
+            'not_realized' => 'Publication marquée comme non réalisée.',
+            'cancelled' => 'Publication marquée comme annulée.',
         ];
 
-        return back()->with('success', $messages[$status]);
+        // Rester sur la page actuelle au lieu de rediriger vers le dashboard
+        return redirect()->route('publications.show', $publication)
+            ->with('success', $messages[$status]);
     }
 
     /**
@@ -432,12 +529,12 @@ class PublicationController extends Controller
             'client_id' => $publication->client_id,
             'date' => $validated['new_date'],
             'content_idea_id' => $publication->content_idea_id,
-            'shooting_id' => $publication->shooting_id,
             'status' => 'pending',
         ]);
 
-        // Marquer l'ancienne comme annulée
-        $publication->status = 'cancelled';
+        // Marquer l'ancienne comme reprogrammée
+        $publication->status = 'rescheduled';
+        $publication->status_reason = 'Reprogrammée - Nouvelle date : ' . $validated['new_date'];
         $publication->save();
 
         return redirect()->route('publications.show', $newPublication)

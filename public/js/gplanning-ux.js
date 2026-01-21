@@ -525,22 +525,6 @@ class GplanningUX {
                             }
                         }
                     });
-                    
-                    // Afficher une notification
-                    const restoreBtn = document.createElement('button');
-                    restoreBtn.textContent = 'Brouillon restauré - Cliquez pour effacer';
-                    restoreBtn.className = 'btn btn-secondary';
-                    restoreBtn.style.cssText = 'margin-bottom: 1rem; width: 100%;';
-                    restoreBtn.type = 'button';
-                    restoreBtn.addEventListener('click', () => {
-                        localStorage.removeItem(`draft-${formId}`);
-                        restoreBtn.remove();
-                        // Réinitialiser les checkboxes
-                        form.querySelectorAll('input[type="checkbox"]').forEach(cb => {
-                            cb.checked = false;
-                        });
-                    });
-                    form.insertBefore(restoreBtn, form.firstChild);
                 } catch (e) {
                     console.error('Erreur lors de la restauration du brouillon:', e);
                     localStorage.removeItem(`draft-${formId}`);

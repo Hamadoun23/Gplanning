@@ -32,6 +32,9 @@ class DashboardController extends Controller
                 return Carbon::parse($shooting->date)->format('Y-m-d');
             });
 
+        // Liste plate de tous les tournages du mois (pour Finance & RH)
+        $shootingsForMonth = $shootings->flatten()->sortBy('date')->values();
+
         $publications = Publication::whereBetween('date', [$startDate->format('Y-m-d'), $endDate->format('Y-m-d')])
             ->with(['client', 'contentIdea', 'shooting'])
             ->orderBy('date')
@@ -90,7 +93,18 @@ class DashboardController extends Controller
                 ->get(),
         ];
 
-        return view('dashboard', compact('stats', 'calendar', 'month', 'year', 'startDate', 'overdueShootings', 'overduePublications', 'upcomingShootings', 'upcomingPublications'));
+        return view('dashboard', compact(
+            'stats',
+            'calendar',
+            'month',
+            'year',
+            'startDate',
+            'overdueShootings',
+            'overduePublications',
+            'upcomingShootings',
+            'upcomingPublications',
+            'shootingsForMonth'
+        ));
     }
 
     /**
@@ -123,6 +137,9 @@ class DashboardController extends Controller
                 return Carbon::parse($publication->date)->format('Y-m-d');
             });
 
+        // Liste plate de tous les tournages du mois (pour Finance & RH)
+        $shootingsForMonth = $shootings->flatten()->sortBy('date')->values();
+
         // Construire le calendrier combiné
         $calendar = $this->buildCombinedCalendar($startDate, $shootings, $publications);
         
@@ -140,6 +157,7 @@ class DashboardController extends Controller
         
         return response()->json([
             'html' => view('dashboard.partials.calendar-table', compact('calendar'))->render(),
+            'month' => $month,
             'monthName' => $months[$month],
             'year' => $year,
             'prevMonth' => $startDate->copy()->subMonth()->month,
@@ -147,6 +165,13 @@ class DashboardController extends Controller
             'nextMonth' => $startDate->copy()->addMonth()->month,
             'nextYear' => $startDate->copy()->addMonth()->year,
             'stats' => $stats,
+            'shootings_for_month' => $shootingsForMonth->map(function ($shooting) {
+                return [
+                    'date' => Carbon::parse($shooting->date)->format('d/m/Y H:i'),
+                    'iso_date' => Carbon::parse($shooting->date)->format('Ymd\THis'),
+                    'client' => $shooting->client ? $shooting->client->nom_entreprise : 'Client inconnu',
+                ];
+            })->values(),
         ]);
     }
 
@@ -199,25 +224,51 @@ class DashboardController extends Controller
     public function generateReport(Request $request)
     {
         $clientId = $request->get('client_id');
+        $period = $request->get('period', 'monthly');
         $now = Carbon::now();
+
+        if (!in_array($period, ['weekly', 'monthly', 'annual'], true)) {
+            $period = 'monthly';
+        }
+
+        switch ($period) {
+            case 'weekly':
+                $startDate = $now->copy()->startOfWeek(Carbon::MONDAY);
+                $endDate = $now->copy()->endOfWeek(Carbon::SUNDAY);
+                $periodLabel = 'Hebdomadaire';
+                $periodSlug = 'hebdomadaire';
+                break;
+            case 'annual':
+                $startDate = $now->copy()->startOfYear();
+                $endDate = $now->copy()->endOfYear();
+                $periodLabel = 'Annuel';
+                $periodSlug = 'annuel';
+                break;
+            default:
+                $startDate = $now->copy()->startOfMonth();
+                $endDate = $now->copy()->endOfMonth();
+                $periodLabel = 'Mensuel';
+                $periodSlug = 'mensuel';
+                break;
+        }
         
         if ($clientId && $clientId !== 'all') {
             $client = Client::with(['shootings', 'publications.contentIdea', 'publications.shooting', 'publicationRules'])
                 ->findOrFail($clientId);
             $clients = collect([$client]);
-            $title = "Rapport - " . $client->nom_entreprise;
+            $title = "Rapport {$periodLabel} - " . $client->nom_entreprise;
         } else {
             $clients = Client::with(['shootings', 'publications.contentIdea', 'publications.shooting', 'publicationRules'])
                 ->orderBy('nom_entreprise')
                 ->get();
-            $title = "Rapport Complet - Tous les Clients";
+            $title = "Rapport {$periodLabel} - Tous les Clients";
         }
         
-        $html = $this->generateReportHTML($clients, $title, $now);
+        $html = $this->generateReportHTML($clients, $title, $now, $startDate, $endDate, $periodLabel);
         
         $filename = $clientId && $clientId !== 'all' 
-            ? 'rapport_' . str_replace(' ', '_', $client->nom_entreprise) . '_' . $now->format('Y-m-d') . '.doc'
-            : 'rapport_complet_' . $now->format('Y-m-d') . '.doc';
+            ? 'rapport_' . $periodSlug . '_' . str_replace(' ', '_', $client->nom_entreprise) . '_' . $now->format('Y-m-d') . '.doc'
+            : 'rapport_' . $periodSlug . '_tous_clients_' . $now->format('Y-m-d') . '.doc';
         
         return response($html)
             ->header('Content-Type', 'application/msword')
@@ -228,7 +279,7 @@ class DashboardController extends Controller
     /**
      * Génère le HTML du rapport
      */
-    private function generateReportHTML($clients, $title, $now)
+    private function generateReportHTML($clients, $title, $now, $startDate, $endDate, $periodLabel)
     {
         $html = '<!DOCTYPE html>
 <html>
@@ -254,11 +305,18 @@ class DashboardController extends Controller
 </head>
 <body>
     <h1>' . htmlspecialchars($title) . '</h1>
-    <p><strong>Date de génération :</strong> ' . $now->format('d/m/Y à H:i') . '</p>';
+    <p><strong>Date de génération :</strong> ' . $now->format('d/m/Y à H:i') . '</p>
+    <p><strong>Période :</strong> ' . $periodLabel . ' (du ' . $startDate->format('d/m/Y') . ' au ' . $endDate->format('d/m/Y') . ')</p>';
         
         foreach ($clients as $client) {
-            $shootings = $client->shootings()->orderBy('date')->get();
-            $publications = $client->publications()->orderBy('date')->get();
+            $shootings = $client->shootings()
+                ->whereBetween('date', [$startDate->toDateString(), $endDate->toDateString()])
+                ->orderBy('date')
+                ->get();
+            $publications = $client->publications()
+                ->whereBetween('date', [$startDate->toDateString(), $endDate->toDateString()])
+                ->orderBy('date')
+                ->get();
             $rules = $client->publicationRules;
             
             $html .= '<div class="client-section">

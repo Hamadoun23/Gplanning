@@ -17,10 +17,11 @@ class Publication extends Model
         'shooting_id',
         'status',
         'description',
+        'status_reason',
     ];
 
     protected $casts = [
-        'date' => 'date',
+        'date' => 'datetime',
     ];
 
     /**
@@ -52,7 +53,7 @@ class Publication extends Model
      */
     public function isOverdue(): bool
     {
-        return $this->status === 'pending' && $this->date < now()->toDateString();
+        return $this->status === 'pending' && $this->date < now();
     }
 
     /**
@@ -70,5 +71,13 @@ class Publication extends Model
     public function isCompleted(): bool
     {
         return $this->status === 'completed';
+    }
+    
+    /**
+     * Vérifie si la publication nécessite une action (non réalisée, annulée, reprogrammée)
+     */
+    public function requiresAction(): bool
+    {
+        return in_array($this->status, ['not_realized', 'cancelled', 'rescheduled']);
     }
 }

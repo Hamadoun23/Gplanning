@@ -14,7 +14,7 @@ class PublicationRuleController extends Controller
     public function index(Client $client)
     {
         $rules = $client->publicationRules()->orderBy('day_of_week')->get();
-        return view('publication-rules.index', compact('client', 'rules'));
+        return $this->viewForRole('publication-rules.index', compact('client', 'rules'));
     }
 
     /**
@@ -50,7 +50,7 @@ class PublicationRuleController extends Controller
 
         // Redirection intelligente : retourner à la page du client après création
         if ($request->has('return_to_client')) {
-            return redirect()->route('clients.show', $client)
+            return redirect()->route('clients.dashboard', $client)
                 ->with('success', 'Règle de publication créée avec succès.');
         }
 

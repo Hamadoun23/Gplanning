@@ -33,8 +33,19 @@
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
             background-color: #f5f7fa;
+            background-image: url('{{ asset("Bgblanc.jpg") }}');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
             color: #303030;
             line-height: 1.6;
+        }
+        
+        /* Exclure la page de login du fond */
+        body.login-page {
+            background-image: none;
+            background-color: #f5f7fa;
         }
         
         .container {
@@ -664,6 +675,9 @@
     <script src="{{ asset('js/gplanning-ux.js') }}"></script>
     </head>
 <body>
+    @php
+        $isTeamReadOnly = auth()->check() && auth()->user()->isTeam();
+    @endphp
     <header>
         <div class="container">
             <div class="logo-container">

@@ -9,7 +9,9 @@
             <p style="color: #666;">Idée de contenu partagée</p>
         </div>
         <div>
-            <a href="{{ route('content-ideas.edit', $contentIdea) }}" class="btn btn-secondary" style="margin-right: 0.5rem;">Modifier</a>
+            @if(!$isTeamReadOnly)
+                <a href="{{ route('content-ideas.edit', $contentIdea) }}" class="btn btn-secondary" style="margin-right: 0.5rem;">Modifier</a>
+            @endif
             <a href="{{ route('content-ideas.index') }}" class="btn btn-secondary">Retour</a>
         </div>
     </div>

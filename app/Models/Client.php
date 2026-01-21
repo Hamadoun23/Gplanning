@@ -40,6 +40,14 @@ class Client extends Model
     }
 
     /**
+     * Relation : Un client a plusieurs rapports
+     */
+    public function reports(): HasMany
+    {
+        return $this->hasMany(ClientReport::class);
+    }
+
+    /**
      * Vérifie si un jour de la semaine est non recommandé pour ce client
      */
     public function isDayNotRecommended(string $dayOfWeek): bool

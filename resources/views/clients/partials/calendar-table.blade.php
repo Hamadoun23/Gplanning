@@ -54,7 +54,7 @@
                                      data-event-type="shooting"
                                      onclick="event.stopPropagation(); openClientDateModal('{{ $day['date']->format('Y-m-d') }}'); return false;"
                                      style="background-color: {{ $bgColor }}; color: white; padding: 0.25rem 0.5rem; margin-bottom: 0.25rem; border-radius: 3px; font-size: 0.7rem; cursor: pointer; border-left: 3px solid {{ $borderColor }};" 
-                                     title="Tournage - {{ $shooting->status === 'completed' ? 'Complété' : ($shooting->isOverdue() ? 'En retard' : ($shooting->isUpcoming() ? 'Approche' : 'En attente')) }}">
+                                     title="Tournage - {{ $shooting->date->format('d/m/Y H:i') }} - {{ $shooting->status === 'completed' ? 'Complété' : ($shooting->isOverdue() ? 'En retard' : ($shooting->isUpcoming() ? 'Approche' : 'En attente')) }}">
                                     <strong>{{ $icon }} Tournage</strong>
                                     @if($shooting->contentIdeas->count() > 0)
                                         <br><small>{{ $shooting->contentIdeas->count() }} idée(s)</small>
@@ -93,7 +93,7 @@
                                      data-event-type="publication"
                                      onclick="event.stopPropagation(); openClientDateModal('{{ $day['date']->format('Y-m-d') }}'); return false;"
                                      style="background-color: {{ $bgColor }}; color: {{ $textColor }}; padding: 0.25rem 0.5rem; margin-bottom: 0.25rem; border-radius: 3px; font-size: 0.7rem; cursor: pointer; border-left: 3px solid {{ $borderColor }};" 
-                                     title="Publication - {{ $publication->contentIdea->titre }} - {{ $publication->status === 'completed' ? 'Complétée' : ($publication->isOverdue() ? 'En retard' : ($publication->isUpcoming() ? 'Approche' : 'En attente')) }}">
+                                     title="Publication - {{ $publication->date->format('d/m/Y H:i') }} - {{ $publication->contentIdea->titre }} - {{ $publication->status === 'completed' ? 'Complétée' : ($publication->isOverdue() ? 'En retard' : ($publication->isUpcoming() ? 'Approche' : 'En attente')) }}">
                                     <strong>{{ $icon }} Publication</strong>
                                     <br><small>{{ mb_strlen($publication->contentIdea->titre) > 15 ? mb_substr($publication->contentIdea->titre, 0, 15) . '...' : $publication->contentIdea->titre }}</small>
                                 </div>

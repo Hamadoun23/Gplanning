@@ -19,11 +19,15 @@ class UserSeeder extends Seeder
         $admins = [
             ['username' => 'Modi', 'password' => 'Wara@lyon2026', 'role' => 'admin'],
             ['username' => 'Dante', 'password' => 'Dante@tmc2026', 'role' => 'admin'],
-            ['username' => 'Kmex', 'password' => 'Bigk@2026', 'role' => 'admin'],
-            ['username' => 'Ballo', 'password' => 'Hm@ballo2026', 'role' => 'admin'],
             ['username' => 'Cisse', 'password' => '23m@2026', 'role' => 'admin'],
             ['username' => 'Yaya', 'password' => 'Yalatif@2026', 'role' => 'admin'],
-            ['username' => 'Youba', 'password' => 'Youbs@2026', 'role' => 'admin'],
+        ];
+
+        // Team (lecture seule)
+        $teamUsers = [
+            ['username' => 'Youba', 'password' => 'Youbs@2026', 'role' => 'team'],
+            ['username' => 'Kmex', 'password' => 'Bigk@2026', 'role' => 'team'],
+            ['username' => 'Ballo', 'password' => 'Hm@ballo2026', 'role' => 'team'],
         ];
 
         // Clients avec leur mapping vers les clients
@@ -40,6 +44,17 @@ class UserSeeder extends Seeder
                 [
                     'password' => Hash::make($admin['password']),
                     'role' => $admin['role'],
+                ]
+            );
+        }
+
+        // Créer les team
+        foreach ($teamUsers as $teamUser) {
+            User::updateOrCreate(
+                ['username' => $teamUser['username']],
+                [
+                    'password' => Hash::make($teamUser['password']),
+                    'role' => $teamUser['role'],
                 ]
             );
         }

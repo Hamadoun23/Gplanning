@@ -106,8 +106,8 @@ Route::middleware(['auth'])->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
     
-    // Dashboard admin (réservé aux admins)
-    Route::middleware(['admin'])->group(function () {
+    // Dashboard admin (admins + team en lecture seule)
+    Route::middleware(['admin.or.team', 'team.readonly'])->group(function () {
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
         Route::get('/dashboard/generate-report', [DashboardController::class, 'generateReport'])->name('dashboard.generate-report');
         Route::get('/dashboard/export-calendar', [DashboardController::class, 'exportCalendar'])->name('dashboard.export-calendar');
@@ -115,8 +115,14 @@ Route::middleware(['auth'])->group(function () {
         // Comparaison de plannings
         Route::get('/planning-comparison', [PlanningComparisonController::class, 'index'])->name('planning-comparison.index');
 
-        // Clients (CRUD) - réservé aux admins
-        Route::resource('clients', ClientController::class);
+        // Clients (CRUD) - admins (team en lecture seule)
+        Route::resource('clients', ClientController::class)->except(['show']);
+        Route::get('clients/{client}', [ClientController::class, 'show'])->name('clients.show');
+        Route::get('clients/{client}/stats', [ClientController::class, 'getStats'])->name('clients.get-stats');
+        Route::get('clients/{client}/events', [ClientController::class, 'getEvents'])->name('clients.get-events');
+        Route::post('clients/{client}/upload-report', [ClientController::class, 'uploadReport'])->name('clients.upload-report');
+        Route::get('clients/{client}/reports/{report}/download', [ClientController::class, 'downloadReport'])->name('clients.reports.download');
+        Route::delete('clients/{client}/reports/{report}', [ClientController::class, 'deleteReport'])->name('clients.reports.delete');
     });
 
     // Dashboard client (accessible aux clients pour leur propre client)
@@ -129,8 +135,8 @@ Route::middleware(['auth'])->group(function () {
         ->middleware('client.access')
         ->name('clients.generate-report');
 
-    // Routes réservées aux admins uniquement
-    Route::middleware(['admin'])->group(function () {
+    // Routes réservées aux admins (team en lecture seule)
+    Route::middleware(['admin.or.team', 'team.readonly'])->group(function () {
         // Idées de contenu (partagées entre tous les clients)
         Route::resource('content-ideas', ContentIdeaController::class);
 
@@ -153,6 +159,7 @@ Route::middleware(['auth'])->group(function () {
         Route::post('publications/{publication}/toggle-status', [PublicationController::class, 'toggleStatus'])->name('publications.toggle-status');
         Route::post('publications/{publication}/reschedule', [PublicationController::class, 'reschedule'])->name('publications.reschedule');
         Route::get('publications/export-calendar', [PublicationController::class, 'exportCalendar'])->name('publications.export-calendar');
+        Route::get('publications/get-calendar-data', [PublicationController::class, 'getCalendarData'])->name('publications.get-calendar-data');
     });
 
     // API Routes for UX features
@@ -365,6 +372,10 @@ Route::middleware(['auth'])->group(function () {
         });
         
         Route::get('admin-calendar', [DashboardController::class, 'getCalendarData'])->name('api.admin-calendar');
+        
+        Route::get('publications-calendar', [PublicationController::class, 'getCalendarData'])->name('api.publications-calendar');
+        
+        Route::get('shootings-calendar', [ShootingController::class, 'getCalendarData'])->name('api.shootings-calendar');
         
         Route::get('events-by-date', function () {
             $date = request('date');

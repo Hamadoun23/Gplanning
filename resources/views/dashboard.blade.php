@@ -3,25 +3,119 @@
 @section('title', 'Tableau de bord')
 
 @section('content')
+    @php
+        $isTeamReadOnly = auth()->check() && auth()->user()->isTeam();
+    @endphp
     <div class="dashboard-header">
-        <h2>Tableau de bord</h2>
+        <div class="dashboard-title" data-gsap="fadeIn">
+            <div class="dashboard-title-badge">
+                <span class="dashboard-badge-icon">📊</span>
+                <span class="dashboard-kicker">Vue globale</span>
+            </div>
+            <h2>
+                <span class="dashboard-title-main">Tableau de bord</span>
+                <span class="dashboard-title-accent"></span>
+            </h2>
+            <p class="dashboard-subtitle">
+                <span class="dashboard-subtitle-icon">✨</span>
+                Gérez vos plannings et générez des rapports en un clic.
+            </p>
+        </div>
         <div class="dashboard-actions">
-            <form action="{{ route('dashboard.generate-report') }}" method="GET" class="report-form">
-                <select name="client_id" class="client-select">
-                    <option value="all">Tous les clients</option>
-                    @foreach(\App\Models\Client::orderBy('nom_entreprise')->get() as $client)
-                        <option value="{{ $client->id }}">{{ $client->nom_entreprise }}</option>
-                    @endforeach
-                </select>
-                <button type="submit" class="btn btn-primary report-btn">
-                    <span class="btn-icon">📄</span>
-                    <span class="btn-text">Générer rapport</span>
-                </button>
-            </form>
-            <a href="{{ route('planning-comparison.index') }}" class="btn btn-primary comparison-btn">
-                <span class="btn-icon">📊</span>
-                <span class="btn-text">Comparer</span>
-            </a>
+            <div class="report-card" data-gsap="fadeInUp">
+                @php
+                    // Adresses mails Finance & RH
+                    $financeEmail = 'thsylla@gdamali.net';
+                    $rhEmail = 'askoita@gdamali.net';
+                    $allRecipients = $financeEmail . ',' . $rhEmail;
+
+                    // Mois / année courants affichés
+                    $months = ['', 'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
+
+                    // Sujet du mail
+                    $mailSubject = 'Préparation tournages - ' . $months[$month] . ' ' . $year;
+
+                    // Construction de la liste des tournages du mois (tous clients)
+                    $lines = [];
+                    if (isset($shootingsForMonth) && $shootingsForMonth->count() > 0) {
+                        foreach ($shootingsForMonth as $shooting) {
+                            $lines[] = '- ' . \Carbon\Carbon::parse($shooting->date)->format('d/m/Y H:i') . ' - ' . ($shooting->client ? $shooting->client->nom_entreprise : 'Client inconnu');
+                        }
+                    } else {
+                        $lines[] = 'Aucun tournage planifié pour ce mois.';
+                    }
+
+                    $mailBodyText = "Bonjour équipe Finance & RH,\n\nNous aurons besoin de votre présence / préparation pour les tournages prévus durant la période de " . $months[$month] . " " . $year . ".\n\nListe des tournages prévus :\n" . implode("\n", $lines) . "\n\nMerci d'anticiper les besoins (budgets, contrats, ressources humaines, déplacements, etc.).\n\nBien à vous,";
+                    $mailBody = rawurlencode($mailBodyText);
+                    $mailtoLinkFinanceRh = 'mailto:' . $allRecipients . '?subject=' . rawurlencode($mailSubject) . '&body=' . $mailBody;
+                @endphp
+
+                @if(auth()->check() && auth()->user()->isAdmin())
+                    <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 0.75rem;">
+                        <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+                            <a href="{{ $mailtoLinkFinanceRh }}" class="btn btn-warning" style="display: inline-flex; align-items: center;">
+                                <span style="margin-right: 0.5rem;">✉️</span>
+                                Prévenir Finance & RH (tous les tournages du mois)
+                            </a>
+                        </div>
+                    </div>
+                @endif
+
+                <form action="{{ route('dashboard.generate-report') }}" method="GET" class="report-form report-form-modern">
+                    <div class="report-field">
+                        <label class="report-label">Client</label>
+                        <div class="client-combobox" data-client-combobox>
+                            <button type="button" class="client-combobox-trigger" aria-expanded="false">
+                                <span class="client-combobox-text">Tous les clients</span>
+                                <span class="client-combobox-icon">▾</span>
+                            </button>
+                            <div class="client-combobox-panel" role="listbox">
+                                <div class="client-combobox-search">
+                                    <input type="text" placeholder="Rechercher un client..." aria-label="Rechercher un client">
+                                </div>
+                                <ul class="client-combobox-list">
+                                    <li>
+                                        <button type="button" class="is-active" data-client-value="all" data-client-label="Tous les clients">Tous les clients</button>
+                                    </li>
+                                    @foreach(\App\Models\Client::orderBy('nom_entreprise')->get() as $client)
+                                        <li>
+                                            <button type="button" data-client-value="{{ $client->id }}" data-client-label="{{ $client->nom_entreprise }}">{{ $client->nom_entreprise }}</button>
+                                        </li>
+                                    @endforeach
+                                </ul>
+                            </div>
+                            <input type="hidden" name="client_id" value="all">
+                        </div>
+                    </div>
+                    <div class="report-field">
+                        <label class="report-label">Période</label>
+                        <div class="report-period-toggle" role="group" aria-label="Période du rapport">
+                            <label class="period-option">
+                                <input type="radio" name="period" value="weekly">
+                                <span>Hebdo</span>
+                            </label>
+                            <label class="period-option">
+                                <input type="radio" name="period" value="monthly" checked>
+                                <span>Mensuel</span>
+                            </label>
+                            <label class="period-option">
+                                <input type="radio" name="period" value="annual">
+                                <span>Annuel</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="report-actions">
+                        <button type="submit" class="btn btn-primary report-btn">
+                            <span class="btn-icon">📄</span>
+                            <span class="btn-text">Générer rapport</span>
+                        </button>
+                        <a href="{{ route('planning-comparison.index') }}" class="btn btn-secondary comparison-btn">
+                            <span class="btn-icon">📊</span>
+                            <span class="btn-text">Comparer</span>
+                        </a>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
     
@@ -41,14 +135,14 @@
                         @foreach($overdueShootings as $shooting)
                             <div class="alert-item">
                                 <span class="item-icon">📹</span>
-                                <span class="item-text">Tournage du {{ $shooting->date->format('d/m/Y') }} - {{ $shooting->client->nom_entreprise }}</span>
+                                <span class="item-text">Tournage du {{ $shooting->date->format('d/m/Y H:i') }} - {{ $shooting->client->nom_entreprise }}</span>
                                 <a href="{{ route('shootings.show', $shooting) }}" class="item-link">Voir</a>
                             </div>
                         @endforeach
                         @foreach($overduePublications as $publication)
                             <div class="alert-item">
                                 <span class="item-icon">📢</span>
-                                <span class="item-text">Publication du {{ $publication->date->format('d/m/Y') }} - {{ $publication->client->nom_entreprise }}</span>
+                                <span class="item-text">Publication du {{ $publication->date->format('d/m/Y H:i') }} - {{ $publication->client->nom_entreprise }}</span>
                                 <a href="{{ route('publications.show', $publication) }}" class="item-link">Voir</a>
                             </div>
                         @endforeach
@@ -71,14 +165,14 @@
                         @foreach($upcomingShootings as $shooting)
                             <div class="alert-item">
                                 <span class="item-icon">📹</span>
-                                <span class="item-text">Tournage du {{ $shooting->date->format('d/m/Y') }} - {{ $shooting->client->nom_entreprise }}</span>
+                                <span class="item-text">Tournage du {{ $shooting->date->format('d/m/Y H:i') }} - {{ $shooting->client->nom_entreprise }}</span>
                                 <a href="{{ route('shootings.show', $shooting) }}" class="item-link">Voir</a>
                             </div>
                         @endforeach
                         @foreach($upcomingPublications as $publication)
                             <div class="alert-item">
                                 <span class="item-icon">📢</span>
-                                <span class="item-text">Publication du {{ $publication->date->format('d/m/Y') }} - {{ $publication->client->nom_entreprise }}</span>
+                                <span class="item-text">Publication du {{ $publication->date->format('d/m/Y H:i') }} - {{ $publication->client->nom_entreprise }}</span>
                                 <a href="{{ route('publications.show', $publication) }}" class="item-link">Voir</a>
                             </div>
                         @endforeach
@@ -286,42 +380,270 @@
             }
         }
         
-        /* Dashboard Header Responsive */
+        /* Dashboard Header Modern */
         .dashboard-header {
-            display: flex;
-            justify-content: space-between;
+            display: grid;
+            grid-template-columns: minmax(280px, 1fr) minmax(360px, 580px);
             align-items: center;
+            gap: 2rem;
             margin-bottom: 2rem;
-            flex-wrap: wrap;
-            gap: 1rem;
         }
-        
-        .dashboard-header h2 {
+
+        .dashboard-title {
+            position: relative;
+            padding: 1.5rem;
+            background: linear-gradient(135deg, rgba(255, 106, 58, 0.05) 0%, rgba(255, 106, 58, 0.02) 100%);
+            border-radius: 20px;
+            border: 1px solid rgba(255, 106, 58, 0.1);
+        }
+
+        .dashboard-title-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.75rem;
+            padding: 0.4rem 0.85rem;
+            background: linear-gradient(135deg, #FF6A3A 0%, #e55a2a 100%);
+            border-radius: 50px;
+            box-shadow: 0 4px 12px rgba(255, 106, 58, 0.25);
+        }
+
+        .dashboard-badge-icon {
+            font-size: 1rem;
+            line-height: 1;
+        }
+
+        .dashboard-kicker {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            font-weight: 800;
+            color: #ffffff;
+        }
+
+        .dashboard-title h2 {
             color: #303030;
-            margin: 0;
-            font-size: 1.75rem;
+            margin: 0 0 0.75rem;
+            font-size: 2.1rem;
+            font-weight: 800;
+            line-height: 1.2;
+            display: flex;
+            align-items: baseline;
+            gap: 0.5rem;
         }
-        
+
+        .dashboard-title-main {
+            background: linear-gradient(135deg, #303030 0%, #1a1a1a 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .dashboard-title-accent {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            background: linear-gradient(135deg, #FF6A3A 0%, #e55a2a 100%);
+            border-radius: 50%;
+            box-shadow: 0 0 12px rgba(255, 106, 58, 0.6);
+        }
+
+        .dashboard-subtitle {
+            margin: 0;
+            color: #6c757d;
+            font-size: 0.95rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-weight: 500;
+        }
+
+        .dashboard-subtitle-icon {
+            font-size: 1.1rem;
+            opacity: 0.7;
+        }
+
         .dashboard-actions {
             display: flex;
-            gap: 0.75rem;
-            flex-wrap: wrap;
-            align-items: center;
+            justify-content: flex-end;
         }
-        
+
+        .report-card {
+            width: 100%;
+            background: #ffffff;
+            border-radius: 20px;
+            padding: 1.5rem;
+            border: 1px solid #eef0f2;
+            box-shadow: 0 10px 24px rgba(0, 0, 0, 0.06);
+        }
+
         .report-form {
-            display: flex;
-            gap: 0.5rem;
-            align-items: center;
-            flex-wrap: wrap;
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0.85rem;
         }
-        
-        .client-select {
+
+        .report-field {
+            display: flex;
+            flex-direction: column;
+            gap: 0.4rem;
+        }
+
+        .report-label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.7px;
+            font-weight: 700;
+            color: #495057;
+        }
+
+        .report-actions {
+            grid-column: 1 / -1;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.75rem;
+        }
+
+        .report-btn,
+        .comparison-btn {
+            justify-content: center;
+            width: 100%;
+        }
+
+        .client-combobox {
+            position: relative;
+        }
+
+        .client-combobox-trigger {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.75rem;
+            padding: 0.65rem 0.85rem;
+            border-radius: 12px;
+            border: 1px solid #e0e0e0;
+            background: #ffffff;
+            font-weight: 600;
+            font-size: 0.95rem;
+            color: #303030;
+            cursor: pointer;
+        }
+
+        .client-combobox-trigger:hover {
+            border-color: #FF6A3A;
+            box-shadow: 0 0 0 3px rgba(255, 106, 58, 0.12);
+        }
+
+        .client-combobox-icon {
+            font-size: 0.8rem;
+            color: #6c757d;
+        }
+
+        .client-combobox-panel {
+            position: absolute;
+            top: calc(100% + 8px);
+            left: 0;
+            right: 0;
+            background: #ffffff;
+            border-radius: 14px;
+            border: 1px solid #eef0f2;
+            box-shadow: 0 16px 32px rgba(0, 0, 0, 0.12);
             padding: 0.5rem;
-            border: 1px solid #ddd;
-            border-radius: 4px;
+            z-index: 20;
+            display: none;
+        }
+
+        .client-combobox-search input {
+            width: 100%;
+            padding: 0.55rem 0.75rem;
+            border-radius: 10px;
+            border: 1px solid #e0e0e0;
             font-size: 0.9rem;
-            min-width: 150px;
+        }
+
+        .client-combobox-list {
+            list-style: none;
+            margin: 0.5rem 0 0;
+            padding: 0;
+            max-height: 220px;
+            overflow-y: auto;
+        }
+
+        .client-combobox-list button {
+            width: 100%;
+            text-align: left;
+            padding: 0.55rem 0.75rem;
+            border: none;
+            background: transparent;
+            border-radius: 10px;
+            font-weight: 600;
+            color: #303030;
+            cursor: pointer;
+        }
+
+        .client-combobox-list button:hover,
+        .client-combobox-list button.is-active {
+            background: rgba(255, 106, 58, 0.12);
+            color: #FF6A3A;
+        }
+
+        .report-period-toggle {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.35rem;
+            border: 1px solid #e5e5e5;
+            border-radius: 999px;
+            background: #ffffff;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+            width: 100%;
+            justify-content: space-between;
+        }
+
+        .period-option {
+            position: relative;
+            cursor: pointer;
+            flex: 1;
+            min-width: 0;
+        }
+
+        .period-option input {
+            position: absolute;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .period-option span {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            min-width: 0;
+            padding: 0.5rem 0.75rem;
+            border-radius: 999px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #303030;
+            transition: all 0.2s ease;
+            border: 1px solid transparent;
+            white-space: nowrap;
+            box-sizing: border-box;
+        }
+
+        .period-option input:checked + span {
+            background: #FF6A3A;
+            color: #ffffff;
+            box-shadow: 0 4px 10px rgba(255,106,58,0.25);
+        }
+
+        .period-option span:hover {
+            border-color: #FF6A3A;
+        }
+
+        .period-option input:focus-visible + span {
+            outline: 2px solid rgba(255,106,58,0.4);
+            outline-offset: 2px;
         }
         
         .report-btn,
@@ -463,27 +785,54 @@
             }
             
             .dashboard-header {
-                flex-direction: column;
-                align-items: stretch;
+                grid-template-columns: 1fr;
+                gap: 1.5rem;
             }
             
-            .dashboard-header h2 {
-                font-size: 1.5rem;
+            .dashboard-title {
+                padding: 1.25rem;
                 text-align: center;
+            }
+
+            .dashboard-title-badge {
+                justify-content: center;
+            }
+            
+            .dashboard-title h2 {
+                font-size: 1.75rem;
+                justify-content: center;
+            }
+
+            .dashboard-subtitle {
+                justify-content: center;
             }
             
             .dashboard-actions {
-                flex-direction: column;
                 width: 100%;
+                justify-content: center;
             }
-            
+
+            .report-card {
+                padding: 0.9rem;
+            }
+
             .report-form {
-                width: 100%;
-                flex-direction: column;
+                grid-template-columns: 1fr;
             }
-            
-            .client-select {
+
+            .report-actions {
+                grid-template-columns: 1fr;
+            }
+
+            .report-period-toggle {
                 width: 100%;
+                justify-content: space-between;
+                padding: 0.35rem;
+            }
+
+            .period-option span {
+                flex: 1;
+                min-width: auto;
             }
             
             .report-btn,
@@ -711,7 +1060,7 @@
     <!-- Calendrier combiné -->
     <div class="card" style="margin-bottom: 2rem;">
         <div class="calendar-header">
-            <h3>
+            <h3 id="calendarTitle">
                 @php
                     $months = ['', 'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
                 @endphp
@@ -720,7 +1069,7 @@
             <div class="calendar-nav">
                 <button type="button" onclick="navigateMonth(-1)" class="btn btn-secondary calendar-nav-btn">←</button>
                 <button type="button" onclick="navigateMonth(1)" class="btn btn-secondary calendar-nav-btn">→</button>
-                <a href="{{ route('dashboard.export-calendar', ['month' => $month, 'year' => $year]) }}" class="btn btn-primary">
+                <a href="{{ route('dashboard.export-calendar', ['month' => $month, 'year' => $year]) }}" id="exportCalendarLink" class="btn btn-primary">
                     <span class="btn-icon">📊</span>
                     <span class="btn-text">Exporter</span>
                 </a>
@@ -740,9 +1089,9 @@
                         <span>Mois</span>
                     </label>
                     <div class="calendar-select-wrapper">
-                        <select id="month" name="month" class="calendar-select">
+                        <select id="month" name="month" class="calendar-select" data-initial-month="{{ $month }}">
                             @for($i = 1; $i <= 12; $i++)
-                                <option value="{{ $i }}" {{ $month == $i ? 'selected' : '' }}>{{ $months[$i] }}</option>
+                                <option value="{{ $i }}" {{ (int)$month == $i ? 'selected' : '' }}>{{ $months[$i] }}</option>
                             @endfor
                         </select>
                         <svg class="calendar-select-arrow" width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2">
@@ -759,9 +1108,9 @@
                         <span>Année</span>
                     </label>
                     <div class="calendar-select-wrapper">
-                        <select id="year" name="year" class="calendar-select">
+                        <select id="year" name="year" class="calendar-select" data-initial-year="{{ $year }}">
                             @for($i = 2020; $i <= 2030; $i++)
-                                <option value="{{ $i }}" {{ $year == $i ? 'selected' : '' }}>{{ $i }}</option>
+                                <option value="{{ $i }}" {{ (int)$year == $i ? 'selected' : '' }}>{{ $i }}</option>
                             @endfor
                         </select>
                         <svg class="calendar-select-arrow" width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2">
@@ -807,7 +1156,9 @@
                                     @if($day['hasWarnings'])
                                         <span class="badge badge-warning" style="font-size: 0.7rem;">⚠️</span>
                                     @endif
-                                    <button class="calendar-day-add-btn" onclick="event.stopPropagation(); openDateModal('{{ $day['date']->format('Y-m-d') }}');" title="Gérer les événements" style="margin-left: auto; background: #FF6A3A; color: white; border: none; border-radius: 50%; width: 24px; height: 24px; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; opacity: 0.7; transition: opacity 0.2s;">+</button>
+                                    @if(!$isTeamReadOnly)
+                                        <button class="calendar-day-add-btn" onclick="event.stopPropagation(); openDateModal('{{ $day['date']->format('Y-m-d') }}');" title="Gérer les événements" style="margin-left: auto; background: #FF6A3A; color: white; border: none; border-radius: 50%; width: 24px; height: 24px; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; opacity: 0.7; transition: opacity 0.2s;">+</button>
+                                    @endif
                                 </div>
                                 <div class="calendar-day-events" style="max-height: 110px; overflow-y: auto;" onclick="event.stopPropagation();">
                                     <!-- Tournages -->
@@ -839,7 +1190,7 @@
                                              data-event-id="{{ $shooting->id }}"
                                              style="background-color: {{ $bgColor }}; color: white; padding: 0.25rem 0.5rem; margin-bottom: 0.25rem; border-radius: 3px; font-size: 0.7rem; cursor: pointer; border-left: 3px solid {{ $borderColor }};" 
                                              onclick="event.stopPropagation(); window.location.href='{{ route('shootings.show', $shooting) }}'"
-                                             title="Tournage - {{ $shooting->client->nom_entreprise }} - {{ $shooting->status === 'completed' ? 'Complété' : ($shooting->isOverdue() ? 'En retard' : ($shooting->isUpcoming() ? 'Approche' : 'En attente')) }}">
+                                             title="Tournage - {{ $shooting->client->nom_entreprise }} - {{ $shooting->date->format('d/m/Y H:i') }} - {{ $shooting->status === 'completed' ? 'Complété' : ($shooting->isOverdue() ? 'En retard' : ($shooting->isUpcoming() ? 'Approche' : 'En attente')) }}">
                                             <strong>{{ $icon }} {{ $shooting->client->nom_entreprise }}</strong>
                                             @if($shooting->contentIdeas->count() > 0)
                                                 <br><small>{{ $shooting->contentIdeas->count() }} idée(s)</small>
@@ -858,10 +1209,18 @@
                                             $icon = '📢';
                                             $textColor = 'white';
                                             
-                                            if ($publication->status === 'cancelled') {
+                                            if ($publication->status === 'not_realized') {
                                                 $bgColor = '#6c757d';
                                                 $borderColor = '#5a6268';
                                                 $icon = '❌';
+                                            } elseif ($publication->status === 'cancelled') {
+                                                $bgColor = '#6c757d';
+                                                $borderColor = '#5a6268';
+                                                $icon = '🚫';
+                                            } elseif ($publication->status === 'rescheduled') {
+                                                $bgColor = '#17a2b8';
+                                                $borderColor = '#138496';
+                                                $icon = '📅';
                                             } elseif ($publication->isCompleted()) {
                                                 $bgColor = '#28a745';
                                                 $borderColor = '#1e7e34';
@@ -886,7 +1245,7 @@
                                              data-event-id="{{ $publication->id }}"
                                              style="background-color: {{ $bgColor }}; color: {{ $textColor }}; padding: 0.25rem 0.5rem; margin-bottom: 0.25rem; border-radius: 3px; font-size: 0.7rem; cursor: pointer; border-left: 3px solid {{ $borderColor }};" 
                                              onclick="event.stopPropagation(); window.location.href='{{ route('publications.show', $publication) }}'"
-                                             title="Publication - {{ $publication->client->nom_entreprise }} - {{ $publication->contentIdea->titre }} - {{ $publication->status === 'completed' ? 'Complétée' : ($publication->isOverdue() ? 'En retard' : ($publication->isUpcoming() ? 'Approche' : 'En attente')) }}">
+                                             title="Publication - {{ $publication->client->nom_entreprise }} - {{ $publication->date->format('d/m/Y H:i') }} - {{ $publication->contentIdea->titre }} - {{ $publication->status === 'completed' ? 'Complétée' : ($publication->isOverdue() ? 'En retard' : ($publication->isUpcoming() ? 'Approche' : 'En attente')) }}">
                                             <strong>{{ $icon }} {{ $publication->client->nom_entreprise }}</strong>
                                             <br><small>{{ mb_strlen($publication->contentIdea->titre) > 15 ? mb_substr($publication->contentIdea->titre, 0, 15) . '...' : $publication->contentIdea->titre }}</small>
                                             @if($hasWarning && !$publication->isUpcoming())
@@ -982,7 +1341,7 @@
                     <tbody>
                         @foreach($stats['upcoming_publications'] as $publication)
                             <tr>
-                                <td>{{ $publication->date->format('d/m/Y') }}</td>
+                                <td>{{ $publication->date->format('d/m/Y H:i') }}</td>
                                 <td>{{ $publication->client->nom_entreprise }}</td>
                                 <td>{{ $publication->contentIdea->titre }}</td>
                                 <td>
@@ -1017,18 +1376,22 @@
                     <div class="modal-section">
                         <h4>📹 Tournages</h4>
                         <div id="shootingsList" class="events-list"></div>
-                        <a href="{{ route('shootings.create') }}" id="addShootingLink" class="btn btn-primary modal-add-btn" style="margin-top: 0.5rem; display: inline-block; text-decoration: none;">
-                            + Ajouter un tournage
-                        </a>
+                        @if(!$isTeamReadOnly)
+                            <a href="{{ route('shootings.create') }}" id="addShootingLink" class="btn btn-primary modal-add-btn" style="margin-top: 0.5rem; display: inline-block; text-decoration: none;">
+                                + Ajouter un tournage
+                            </a>
+                        @endif
                     </div>
                     
                     <!-- Publications -->
                     <div class="modal-section">
                         <h4>📢 Publications</h4>
                         <div id="publicationsList" class="events-list"></div>
-                        <a href="{{ route('publications.create') }}" id="addPublicationLink" class="btn btn-primary modal-add-btn" style="margin-top: 0.5rem; display: inline-block; text-decoration: none;">
-                            + Ajouter une publication
-                        </a>
+                        @if(!$isTeamReadOnly)
+                            <a href="{{ route('publications.create') }}" id="addPublicationLink" class="btn btn-primary modal-add-btn" style="margin-top: 0.5rem; display: inline-block; text-decoration: none;">
+                                + Ajouter une publication
+                            </a>
+                        @endif
                     </div>
                 </div>
             </div>
@@ -1239,6 +1602,11 @@
             color: #721c24;
         }
         
+        .status-info {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+        
         .status-overdue {
             background: #f8d7da;
             color: #721c24;
@@ -1313,6 +1681,8 @@
     </style>
     
     <script>
+        const isTeamReadOnly = @json($isTeamReadOnly);
+
         function openDateModal(date) {
             const modal = document.getElementById('dateModal');
             const modalDateText = document.getElementById('modalDateText');
@@ -1358,17 +1728,19 @@
         function displayShootings(shootings, date) {
             const container = document.getElementById('shootingsList');
             const addLink = document.getElementById('addShootingLink');
-            // Récupérer le mois et l'année actuels du planning
-            const currentMonth = parseInt(document.getElementById('month').value);
-            const currentYear = parseInt(document.getElementById('year').value);
-            // Construire l'URL avec le paramètre date, month et year
-            const baseUrl = addLink.getAttribute('href').split('?')[0];
-            const shootingCreateUrl = `${baseUrl}?date=${encodeURIComponent(date)}&return_month=${currentMonth}&return_year=${currentYear}&return_to_dashboard=1`;
-            addLink.href = shootingCreateUrl;
-            addLink.style.pointerEvents = 'auto';
-            addLink.style.cursor = 'pointer';
-            // S'assurer que le lien fonctionne même si JavaScript bloque
-            addLink.setAttribute('target', '_self');
+            if (addLink) {
+                // Récupérer le mois et l'année actuels du planning
+                const currentMonth = parseInt(document.getElementById('month').value);
+                const currentYear = parseInt(document.getElementById('year').value);
+                // Construire l'URL avec le paramètre date, month et year
+                const baseUrl = addLink.getAttribute('href').split('?')[0];
+                const shootingCreateUrl = `${baseUrl}?date=${encodeURIComponent(date)}&return_month=${currentMonth}&return_year=${currentYear}&return_to_dashboard=1`;
+                addLink.href = shootingCreateUrl;
+                addLink.style.pointerEvents = 'auto';
+                addLink.style.cursor = 'pointer';
+                // S'assurer que le lien fonctionne même si JavaScript bloque
+                addLink.setAttribute('target', '_self');
+            }
             
             if (shootings.length === 0) {
                 container.innerHTML = '<div class="empty-events">Aucun tournage prévu</div>';
@@ -1397,6 +1769,12 @@
                     ? shooting.content_ideas.map(ci => ci.titre || ci).join(', ')
                     : 'Aucune idée de contenu';
                 
+                const actionButtons = isTeamReadOnly
+                    ? `<a href="${shooting.url}" class="btn btn-primary">Voir</a>`
+                    : `<a href="${shooting.url}" class="btn btn-primary">Voir</a>
+                       <a href="${shooting.edit_url}" class="btn btn-secondary">Modifier</a>
+                       <button onclick="deleteEvent('shooting', ${shooting.id}, '${shooting.client_name}')" class="btn btn-danger">Supprimer</button>`;
+
                 return `
                     <div class="event-item">
                         <div class="event-item-info">
@@ -1410,9 +1788,7 @@
                             </div>
                         </div>
                         <div class="event-item-actions">
-                            <a href="${shooting.url}" class="btn btn-primary">Voir</a>
-                            <a href="${shooting.edit_url}" class="btn btn-secondary">Modifier</a>
-                            <button onclick="deleteEvent('shooting', ${shooting.id}, '${shooting.client_name}')" class="btn btn-danger">Supprimer</button>
+                            ${actionButtons}
                         </div>
                     </div>
                 `;
@@ -1422,17 +1798,19 @@
         function displayPublications(publications, date) {
             const container = document.getElementById('publicationsList');
             const addLink = document.getElementById('addPublicationLink');
-            // Récupérer le mois et l'année actuels du planning
-            const currentMonth = parseInt(document.getElementById('month').value);
-            const currentYear = parseInt(document.getElementById('year').value);
-            // Construire l'URL avec le paramètre date, month et year
-            const baseUrl = addLink.getAttribute('href').split('?')[0];
-            const publicationCreateUrl = `${baseUrl}?date=${encodeURIComponent(date)}&return_month=${currentMonth}&return_year=${currentYear}&return_to_dashboard=1`;
-            addLink.href = publicationCreateUrl;
-            addLink.style.pointerEvents = 'auto';
-            addLink.style.cursor = 'pointer';
-            // S'assurer que le lien fonctionne même si JavaScript bloque
-            addLink.setAttribute('target', '_self');
+            if (addLink) {
+                // Récupérer le mois et l'année actuels du planning
+                const currentMonth = parseInt(document.getElementById('month').value);
+                const currentYear = parseInt(document.getElementById('year').value);
+                // Construire l'URL avec le paramètre date, month et year
+                const baseUrl = addLink.getAttribute('href').split('?')[0];
+                const publicationCreateUrl = `${baseUrl}?date=${encodeURIComponent(date)}&return_month=${currentMonth}&return_year=${currentYear}&return_to_dashboard=1`;
+                addLink.href = publicationCreateUrl;
+                addLink.style.pointerEvents = 'auto';
+                addLink.style.cursor = 'pointer';
+                // S'assurer que le lien fonctionne même si JavaScript bloque
+                addLink.setAttribute('target', '_self');
+            }
             
             if (publications.length === 0) {
                 container.innerHTML = '<div class="empty-events">Aucune publication prévue</div>';
@@ -1446,9 +1824,15 @@
                 if (publication.status === 'completed') {
                     statusClass = 'status-completed';
                     statusText = 'Complétée';
+                } else if (publication.status === 'not_realized') {
+                    statusClass = 'status-cancelled';
+                    statusText = 'Non réalisée';
                 } else if (publication.status === 'cancelled') {
                     statusClass = 'status-cancelled';
                     statusText = 'Annulée';
+                } else if (publication.status === 'rescheduled') {
+                    statusClass = 'status-info';
+                    statusText = 'Reprogrammée';
                 } else if (publication.is_overdue) {
                     statusClass = 'status-overdue';
                     statusText = 'En retard';
@@ -1457,6 +1841,12 @@
                     statusText = 'À venir';
                 }
                 
+                const actionButtons = isTeamReadOnly
+                    ? `<a href="${publication.url}" class="btn btn-primary">Voir</a>`
+                    : `<a href="${publication.url}" class="btn btn-primary">Voir</a>
+                       <a href="${publication.edit_url}" class="btn btn-secondary">Modifier</a>
+                       <button onclick="deleteEvent('publication', ${publication.id}, '${publication.client_name}')" class="btn btn-danger">Supprimer</button>`;
+
                 return `
                     <div class="event-item">
                         <div class="event-item-info">
@@ -1470,9 +1860,7 @@
                             </div>
                         </div>
                         <div class="event-item-actions">
-                            <a href="${publication.url}" class="btn btn-primary">Voir</a>
-                            <a href="${publication.edit_url}" class="btn btn-secondary">Modifier</a>
-                            <button onclick="deleteEvent('publication', ${publication.id}, '${publication.client_name}')" class="btn btn-danger">Supprimer</button>
+                            ${actionButtons}
                         </div>
                     </div>
                 `;
@@ -1487,6 +1875,12 @@
             const url = type === 'shooting' 
                 ? `/shootings/${id}` 
                 : `/publications/${id}`;
+            
+            // Récupérer le mois et l'année actuels du calendrier
+            const monthSelect = document.getElementById('month');
+            const yearSelect = document.getElementById('year');
+            const currentMonth = monthSelect ? parseInt(monthSelect.value) : new Date().getMonth() + 1;
+            const currentYear = yearSelect ? parseInt(yearSelect.value) : new Date().getFullYear();
             
             const form = document.createElement('form');
             form.method = 'POST';
@@ -1504,10 +1898,103 @@
             csrfInput.value = document.querySelector('meta[name="csrf-token"]').content;
             form.appendChild(csrfInput);
             
+            // Ajouter les paramètres de retour vers le dashboard
+            const monthInput = document.createElement('input');
+            monthInput.type = 'hidden';
+            monthInput.name = 'return_month';
+            monthInput.value = currentMonth;
+            form.appendChild(monthInput);
+            
+            const yearInput = document.createElement('input');
+            yearInput.type = 'hidden';
+            yearInput.name = 'return_year';
+            yearInput.value = currentYear;
+            form.appendChild(yearInput);
+            
             document.body.appendChild(form);
             form.submit();
         }
         
+        function initClientCombobox() {
+            const comboboxes = document.querySelectorAll('[data-client-combobox]');
+
+            comboboxes.forEach((combobox) => {
+                const trigger = combobox.querySelector('.client-combobox-trigger');
+                const panel = combobox.querySelector('.client-combobox-panel');
+                const searchInput = combobox.querySelector('.client-combobox-search input');
+                const listButtons = combobox.querySelectorAll('.client-combobox-list button');
+                const hiddenInput = combobox.querySelector('input[type="hidden"][name="client_id"]');
+                const label = combobox.querySelector('.client-combobox-text');
+
+                if (!trigger || !panel || !searchInput || !hiddenInput || !label) {
+                    return;
+                }
+
+                const closePanel = () => {
+                    if (panel.style.display === 'none') {
+                        return;
+                    }
+                    trigger.setAttribute('aria-expanded', 'false');
+                    gsap.to(panel, {
+                        opacity: 0,
+                        y: -6,
+                        duration: 0.2,
+                        ease: 'power2.inOut',
+                        onComplete: () => {
+                            panel.style.display = 'none';
+                        }
+                    });
+                };
+
+                const openPanel = () => {
+                    panel.style.display = 'block';
+                    trigger.setAttribute('aria-expanded', 'true');
+                    gsap.fromTo(panel, { opacity: 0, y: -6 }, { opacity: 1, y: 0, duration: 0.25, ease: 'power2.out' });
+                    searchInput.focus();
+                };
+
+                trigger.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    const isOpen = panel.style.display === 'block';
+                    if (isOpen) {
+                        closePanel();
+                    } else {
+                        openPanel();
+                    }
+                });
+
+                listButtons.forEach((button) => {
+                    button.addEventListener('click', () => {
+                        const value = button.getAttribute('data-client-value');
+                        const text = button.getAttribute('data-client-label') || button.textContent.trim();
+                        hiddenInput.value = value || 'all';
+                        label.textContent = text;
+                        listButtons.forEach((btn) => btn.classList.remove('is-active'));
+                        button.classList.add('is-active');
+                        closePanel();
+                    });
+                });
+
+                searchInput.addEventListener('input', () => {
+                    const query = searchInput.value.trim().toLowerCase();
+                    listButtons.forEach((button) => {
+                        const text = (button.getAttribute('data-client-label') || button.textContent || '').toLowerCase();
+                        const item = button.closest('li');
+                        if (!item) {
+                            return;
+                        }
+                        item.style.display = text.includes(query) ? '' : 'none';
+                    });
+                });
+
+                document.addEventListener('click', (event) => {
+                    if (!combobox.contains(event.target)) {
+                        closePanel();
+                    }
+                });
+            });
+        }
+
         // Fonction pour initialiser les événements de clic sur les cellules du calendrier
         function initCalendarCellEvents() {
             document.querySelectorAll('.calendar-day-cell').forEach(cell => {
@@ -1530,22 +2017,74 @@
             });
         }
         
+        // Fonction pour synchroniser les valeurs initiales
+        function syncInitialValues() {
+            const monthSelect = document.getElementById('month');
+            const yearSelect = document.getElementById('year');
+            const calendarTitle = document.getElementById('calendarTitle');
+            
+            if (!monthSelect || !yearSelect || !calendarTitle) {
+                return;
+            }
+            
+            // Récupérer les valeurs depuis les attributs data ou les valeurs actuelles des selects
+            let initialMonth = parseInt(monthSelect.getAttribute('data-initial-month'));
+            let initialYear = parseInt(yearSelect.getAttribute('data-initial-year'));
+            
+            // Si les attributs data ne sont pas définis, utiliser les valeurs des selects
+            if (isNaN(initialMonth)) {
+                initialMonth = parseInt(monthSelect.value);
+            }
+            if (isNaN(initialYear)) {
+                initialYear = parseInt(yearSelect.value);
+            }
+            
+            // Valider les valeurs
+            if (isNaN(initialMonth) || initialMonth < 1 || initialMonth > 12) {
+                initialMonth = new Date().getMonth() + 1;
+            }
+            if (isNaN(initialYear) || initialYear < 2020 || initialYear > 2030) {
+                initialYear = new Date().getFullYear();
+            }
+            
+            // Forcer la synchronisation avec des valeurs numériques
+            monthSelect.value = initialMonth.toString();
+            yearSelect.value = initialYear.toString();
+            monthSelect.setAttribute('data-initial-month', initialMonth.toString());
+            yearSelect.setAttribute('data-initial-year', initialYear.toString());
+            
+            // Mettre à jour le titre pour être sûr
+            const months = ['', 'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
+            calendarTitle.textContent = `Planning global - ${months[initialMonth]} ${initialYear}`;
+        }
+        
         // Ouvrir la modal au clic sur une cellule de date
         document.addEventListener('DOMContentLoaded', function() {
+            initClientCombobox();
             initCalendarCellEvents();
             
-            // Ajouter les événements change sur les selects pour mettre à jour automatiquement
-            document.getElementById('month').addEventListener('change', function() {
-                const month = parseInt(this.value);
-                const year = parseInt(document.getElementById('year').value);
-                updateCalendar(month, year);
-            });
+            // Synchroniser les valeurs initiales
+            syncInitialValues();
             
-            document.getElementById('year').addEventListener('change', function() {
-                const month = parseInt(document.getElementById('month').value);
-                const year = parseInt(this.value);
-                updateCalendar(month, year);
-            });
+            // Ajouter les événements change sur les selects pour mettre à jour automatiquement
+            const monthSelect = document.getElementById('month');
+            const yearSelect = document.getElementById('year');
+            
+            if (monthSelect) {
+                monthSelect.addEventListener('change', function() {
+                    const month = parseInt(this.value);
+                    const year = parseInt(yearSelect.value);
+                    updateCalendar(month, year);
+                });
+            }
+            
+            if (yearSelect) {
+                yearSelect.addEventListener('change', function() {
+                    const month = parseInt(monthSelect.value);
+                    const year = parseInt(this.value);
+                    updateCalendar(month, year);
+                });
+            }
             
             // S'assurer que les liens d'ajout fonctionnent
             document.addEventListener('click', function(e) {
@@ -1592,31 +2131,111 @@
             updateCalendar(newMonth, newYear);
         }
         
+        // Variable pour éviter les appels multiples simultanés
+        let isUpdatingCalendar = false;
+        let pendingUpdate = null;
+
         // Fonction pour mettre à jour le calendrier via AJAX
         function updateCalendar(month, year) {
+            // Si une mise à jour est en cours, on stocke la demande pour l'exécuter après
+            if (isUpdatingCalendar) {
+                pendingUpdate = { month, year };
+                return;
+            }
+
+            // Valider les valeurs
+            month = parseInt(month);
+            year = parseInt(year);
+            
+            if (isNaN(month) || month < 1 || month > 12) {
+                console.error('Mois invalide:', month);
+                return;
+            }
+            
+            if (isNaN(year) || year < 2020 || year > 2030) {
+                console.error('Année invalide:', year);
+                return;
+            }
+
+            isUpdatingCalendar = true;
+
             const calendarWrapper = document.getElementById('calendarWrapper');
             const calendarContent = document.getElementById('calendarContent');
             const calendarLoading = document.getElementById('calendarLoading');
-            const calendarHeader = document.querySelector('.calendar-header h3');
+            const calendarTitle = document.getElementById('calendarTitle');
+            const monthSelect = document.getElementById('month');
+            const yearSelect = document.getElementById('year');
+            const exportLink = document.getElementById('exportCalendarLink');
+            
+            // Tableau des mois pour synchronisation immédiate
+            const months = ['', 'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
+            
+            // Mise à jour IMMÉDIATE du titre, des selects et du lien d'export (sans attendre AJAX)
+            // Cela garantit que l'interface est synchronisée instantanément
+            if (calendarTitle) {
+                calendarTitle.textContent = `Planning global - ${months[month]} ${year}`;
+            }
+            
+            // Forcer la synchronisation des selects avec des valeurs numériques
+            // On force toujours la valeur pour s'assurer de la cohérence
+            if (monthSelect) {
+                monthSelect.value = month.toString();
+                // Mettre à jour aussi l'attribut data pour la cohérence
+                monthSelect.setAttribute('data-initial-month', month.toString());
+            }
+            
+            if (yearSelect) {
+                yearSelect.value = year.toString();
+                // Mettre à jour aussi l'attribut data pour la cohérence
+                yearSelect.setAttribute('data-initial-year', year.toString());
+            }
+            
+            if (exportLink) {
+                const baseUrl = exportLink.getAttribute('href').split('?')[0];
+                exportLink.setAttribute('href', `${baseUrl}?month=${month}&year=${year}`);
+            }
             
             // Afficher le loading
-            calendarContent.style.display = 'none';
-            calendarLoading.style.display = 'block';
+            if (calendarContent) {
+                calendarContent.style.display = 'none';
+            }
+            if (calendarLoading) {
+                calendarLoading.style.display = 'block';
+            }
             
             // Faire la requête AJAX
             fetch(`/api/admin-calendar?month=${month}&year=${year}`)
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
                 .then(data => {
                     // Mettre à jour le contenu du calendrier
-                    calendarContent.innerHTML = data.html;
+                    if (calendarContent && data.html) {
+                        calendarContent.innerHTML = data.html;
+                    }
                     
-                    // Mettre à jour le titre
-                    const months = ['', 'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
-                    calendarHeader.textContent = `Planning global - ${data.monthName} ${data.year}`;
+                    // Synchronisation finale avec les données du serveur (vérification de cohérence)
+                    // Utiliser les données du serveur si disponibles, sinon garder les valeurs passées
+                    const finalMonth = data.month ? parseInt(data.month) : month;
+                    const finalYear = data.year ? parseInt(data.year) : year;
+                    const finalMonthName = data.monthName || months[finalMonth];
                     
-                    // Mettre à jour les valeurs des selects
-                    document.getElementById('month').value = month;
-                    document.getElementById('year').value = year;
+                    if (calendarTitle) {
+                        calendarTitle.textContent = `Planning global - ${finalMonthName} ${finalYear}`;
+                    }
+                    
+                    // Forcer la synchronisation des selects avec les valeurs finales
+                    if (monthSelect) {
+                        monthSelect.value = finalMonth.toString();
+                        monthSelect.setAttribute('data-initial-month', finalMonth.toString());
+                    }
+                    if (yearSelect) {
+                        yearSelect.value = finalYear.toString();
+                        yearSelect.setAttribute('data-initial-year', finalYear.toString());
+                    }
                     
                     // Mettre à jour les statistiques si disponibles
                     if (data.stats) {
@@ -1634,12 +2253,34 @@
                     initCalendarCellEvents();
                     
                     // Masquer le loading et afficher le contenu
-                    calendarLoading.style.display = 'none';
-                    calendarContent.style.display = 'block';
+                    if (calendarLoading) {
+                        calendarLoading.style.display = 'none';
+                    }
+                    if (calendarContent) {
+                        calendarContent.style.display = 'block';
+                    }
+
+                    // Libérer le verrou et traiter une éventuelle mise à jour en attente
+                    isUpdatingCalendar = false;
+                    if (pendingUpdate) {
+                        const nextUpdate = pendingUpdate;
+                        pendingUpdate = null;
+                        updateCalendar(nextUpdate.month, nextUpdate.year);
+                    }
                 })
                 .catch(error => {
                     console.error('Erreur:', error);
-                    calendarLoading.innerHTML = '<p style="color: #dc3545;">Erreur lors du chargement du calendrier</p>';
+                    if (calendarLoading) {
+                        calendarLoading.innerHTML = '<p style="color: #dc3545;">Erreur lors du chargement du calendrier</p>';
+                    }
+                    
+                    // Libérer le verrou même en cas d'erreur
+                    isUpdatingCalendar = false;
+                    if (pendingUpdate) {
+                        const nextUpdate = pendingUpdate;
+                        pendingUpdate = null;
+                        updateCalendar(nextUpdate.month, nextUpdate.year);
+                    }
                 });
         }
     </script>

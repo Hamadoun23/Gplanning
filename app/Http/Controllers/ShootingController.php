@@ -36,7 +36,51 @@ class ShootingController extends Controller
 
         $clients = Client::orderBy('nom_entreprise')->get();
 
-        return view('shootings.index', compact('calendar', 'shootings', 'clients', 'month', 'year', 'startDate'));
+        return $this->viewForRole('shootings.index', compact('calendar', 'shootings', 'clients', 'month', 'year', 'startDate'));
+    }
+
+    /**
+     * Récupère les données du calendrier via AJAX
+     */
+    public function getCalendarData(Request $request)
+    {
+        try {
+            $month = (int) $request->get('month', now()->month);
+            $year = (int) $request->get('year', now()->year);
+
+            $startDate = Carbon::create($year, $month, 1);
+            $endDate = $startDate->copy()->endOfMonth();
+
+            $shootings = Shooting::whereBetween('date', [$startDate->format('Y-m-d'), $endDate->format('Y-m-d')])
+                ->with(['client', 'contentIdeas'])
+                ->orderBy('date')
+                ->get()
+                ->groupBy(function($shooting) {
+                    return Carbon::parse($shooting->date)->format('Y-m-d');
+                });
+
+            $calendar = $this->buildCalendar($startDate, $shootings);
+
+            $months = ['', 'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
+            
+            $isTeamReadOnly = auth()->check() && auth()->user()->isTeam();
+
+            return response()->json([
+                'html' => view('shootings.partials.calendar-table', compact('calendar', 'isTeamReadOnly'))->render(),
+                'month' => $month,
+                'year' => $year,
+                'monthName' => $months[$month],
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Erreur getCalendarData shootings: ' . $e->getMessage());
+            return response()->json([
+                'error' => $e->getMessage(),
+                'html' => '<p style="color: #dc3545; padding: 2rem; text-align: center;">Erreur lors du chargement du calendrier: ' . $e->getMessage() . '</p>',
+                'month' => $request->get('month', now()->month),
+                'year' => $request->get('year', now()->year),
+                'monthName' => 'Erreur',
+            ], 500);
+        }
     }
 
     /**
@@ -52,10 +96,30 @@ class ShootingController extends Controller
             $week = [];
             for ($i = 0; $i < 7; $i++) {
                 $dateKey = $currentDate->format('Y-m-d');
+                $dayShootings = $shootings->get($dateKey, collect());
+                
+                // Vérifier les avertissements pour chaque tournage
+                $warnings = [];
+                foreach ($dayShootings as $shooting) {
+                    try {
+                        if ($shooting->client) {
+                            $date = Carbon::parse($shooting->date);
+                            $dayOfWeek = $this->getDayOfWeekInFrench($date);
+                            if ($shooting->client->isDayNotRecommended($dayOfWeek)) {
+                                $warnings[] = $shooting->id;
+                            }
+                        }
+                    } catch (\Exception $e) {
+                        // Ignorer les erreurs pour un tournage individuel
+                        continue;
+                    }
+                }
+                
                 $week[] = [
                     'date' => $currentDate->copy(),
                     'isCurrentMonth' => $currentDate->month == $startDate->month,
-                    'shootings' => $shootings->get($dateKey, collect()),
+                    'shootings' => $dayShootings,
+                    'hasWarnings' => !empty($warnings),
                 ];
                 $currentDate->addDay();
             }
@@ -63,6 +127,24 @@ class ShootingController extends Controller
         }
 
         return $calendar;
+    }
+    
+    /**
+     * Convertit le jour de la semaine en français
+     */
+    private function getDayOfWeekInFrench(Carbon $date): string
+    {
+        $days = [
+            'Monday' => 'lundi',
+            'Tuesday' => 'mardi',
+            'Wednesday' => 'mercredi',
+            'Thursday' => 'jeudi',
+            'Friday' => 'vendredi',
+            'Saturday' => 'samedi',
+            'Sunday' => 'dimanche',
+        ];
+        
+        return $days[$date->format('l')] ?? strtolower($date->format('l'));
     }
 
     /**
@@ -95,39 +177,35 @@ class ShootingController extends Controller
             'content_idea_id.exists' => 'L\'idée de contenu sélectionnée n\'existe pas.',
         ]);
 
+        // Parser la date avec Carbon pour s'assurer que l'heure est bien incluse
+        $date = Carbon::parse($validated['date']);
+        
         $shooting = Shooting::create([
             'client_id' => $validated['client_id'],
-            'date' => $validated['date'],
+            'date' => $date,
             'description' => $validated['description'] ?? null,
         ]);
 
         $shooting->contentIdeas()->attach($validated['content_idea_id']);
 
-        // Redirection vers le dashboard si on vient du planning du dashboard
-        if ($request->has('return_to_dashboard')) {
-            $month = $request->get('return_month');
-            $year = $request->get('return_year');
-            return redirect()->route('dashboard', ['month' => $month, 'year' => $year])
-                ->with('success', 'Tournage créé avec succès.');
-        }
-
-        // Redirection intelligente : si on vient d'un calendrier avec une date, on y retourne
-        if ($request->has('return_to_calendar')) {
-            $date = Carbon::parse($validated['date']);
-            return redirect()->route('shootings.index', ['month' => $date->month, 'year' => $date->year])
-                ->with('success', 'Tournage créé avec succès.');
-        }
-
+        // Toujours rediriger vers le dashboard principal
+        $date = Carbon::parse($validated['date']);
+        $month = $request->get('return_month', $date->month);
+        $year = $request->get('return_year', $date->year);
+        
         // Si on demande de créer une publication après, on redirige vers le formulaire de création de publication
         if ($request->input('action') === 'create_and_publish') {
             return redirect()->route('publications.create', [
                 'client_id' => $shooting->client_id,
                 'date' => $shooting->date->format('Y-m-d'),
-                'shooting_id' => $shooting->id
+                'shooting_id' => $shooting->id,
+                'return_to_dashboard' => 1,
+                'return_month' => $month,
+                'return_year' => $year
             ])->with('success', 'Tournage créé avec succès. Vous pouvez maintenant créer la publication associée.');
         }
 
-        return redirect()->route('shootings.show', $shooting)
+        return redirect()->route('dashboard', ['month' => $month, 'year' => $year])
             ->with('success', 'Tournage créé avec succès.');
     }
 
@@ -137,15 +215,22 @@ class ShootingController extends Controller
     public function show(Shooting $shooting)
     {
         $shooting->load(['client', 'contentIdeas']);
-        return view('shootings.show', compact('shooting'));
+        return $this->viewForRole('shootings.show', compact('shooting'));
     }
 
     /**
      * Affiche le formulaire d'édition
      */
-    public function edit(Shooting $shooting)
+    public function edit(Request $request, Shooting $shooting)
     {
-        $shooting->load('contentIdeas');
+        // Effacer complètement la session old() pour forcer l'utilisation des données de la DB
+        $request->session()->forget('_old_input');
+        
+        // Recharger le tournage depuis la base de données pour s'assurer d'avoir les données à jour
+        $shooting->refresh();
+        
+        // Charger toutes les relations nécessaires
+        $shooting->load(['client', 'contentIdeas']);
         $clients = Client::orderBy('nom_entreprise')->get();
         // Toutes les idées de contenu sont disponibles pour tous les clients
         $contentIdeas = ContentIdea::orderBy('titre')->get();
@@ -172,15 +257,23 @@ class ShootingController extends Controller
             'content_idea_id.exists' => 'L\'idée de contenu sélectionnée n\'existe pas.',
         ]);
 
+        // Parser la date avec Carbon pour s'assurer que l'heure est bien incluse
+        $date = Carbon::parse($validated['date']);
+        
         $shooting->update([
             'client_id' => $validated['client_id'],
-            'date' => $validated['date'],
+            'date' => $date,
             'description' => $validated['description'] ?? null,
         ]);
 
         $shooting->contentIdeas()->sync([$validated['content_idea_id']]);
 
-        return redirect()->route('shootings.show', $shooting)
+        // Toujours rediriger vers le dashboard principal
+        $date = Carbon::parse($validated['date']);
+        $month = $request->get('return_month', $date->month);
+        $year = $request->get('return_year', $date->year);
+        
+        return redirect()->route('dashboard', ['month' => $month, 'year' => $year])
             ->with('success', 'Tournage modifié avec succès.');
     }
 
@@ -189,16 +282,14 @@ class ShootingController extends Controller
      */
     public function destroy(Request $request, Shooting $shooting)
     {
-        $clientId = $shooting->client_id;
+        $date = $shooting->date;
+        $month = $request->get('return_month', $date->month);
+        $year = $request->get('return_year', $date->year);
+        
         $shooting->delete();
 
-        // Si on vient de la page du client, on y retourne
-        if ($request->has('return_to_client')) {
-            return redirect()->route('clients.show', $clientId)
-                ->with('success', 'Tournage supprimé avec succès.');
-        }
-
-        return redirect()->route('shootings.index')
+        // Toujours rediriger vers le dashboard principal
+        return redirect()->route('dashboard', ['month' => $month, 'year' => $year])
             ->with('success', 'Tournage supprimé avec succès.');
     }
 
@@ -208,21 +299,67 @@ class ShootingController extends Controller
     public function toggleStatus(Request $request, Shooting $shooting)
     {
         $status = $request->input('status', 'completed');
+        $statusReason = $request->input('status_reason');
         
-        if (!in_array($status, ['pending', 'completed', 'cancelled'])) {
+        // Statuts qui nécessitent une description obligatoire
+        $statusesRequiringReason = ['not_realized', 'cancelled', 'rescheduled'];
+        
+        if (!in_array($status, ['pending', 'completed', 'not_realized', 'cancelled', 'rescheduled'])) {
             return back()->withErrors(['status' => 'Le statut sélectionné est invalide.']);
         }
 
+        // Vérifier que la description est fournie pour les statuts qui le nécessitent
+        if (in_array($status, $statusesRequiringReason) && empty($statusReason)) {
+            return back()->withErrors(['status_reason' => 'Une description est obligatoire pour ce statut.']);
+        }
+
+        // Si le statut est "rescheduled", modifier directement la date du tournage existant
+        if ($status === 'rescheduled') {
+            // Vérifier que la date est fournie
+            if (!$request->has('reschedule_date') || empty($request->input('reschedule_date'))) {
+                return back()->withErrors(['reschedule_date' => 'La nouvelle date est obligatoire pour reprogrammer un tournage.']);
+            }
+            
+            $newDate = $request->input('reschedule_date');
+            
+            // Valider la date
+            $validated = $request->validate([
+                'reschedule_date' => ['required', 'date', 'after_or_equal:today'],
+            ], [
+                'reschedule_date.required' => 'La nouvelle date est obligatoire.',
+                'reschedule_date.date' => 'La date doit être une date valide.',
+                'reschedule_date.after_or_equal' => 'La nouvelle date doit être aujourd\'hui ou dans le futur.',
+            ]);
+            
+            // Sauvegarder l'ancienne date pour la raison
+            $oldDate = $shooting->date->format('d/m/Y H:i');
+            
+            // Mettre à jour le tournage avec la nouvelle date et le statut
+            $shooting->date = $newDate;
+            $shooting->status = 'pending'; // Remettre en attente avec la nouvelle date
+            $shooting->status_reason = $statusReason . ' - Ancienne date : ' . $oldDate . ' - Nouvelle date : ' . \Carbon\Carbon::parse($newDate)->format('d/m/Y H:i');
+            $shooting->save();
+            
+            // Rester sur la page du tournage modifié
+            return redirect()->route('shootings.show', $shooting)
+                ->with('success', 'Tournage reprogrammé avec succès. La date a été modifiée.');
+        }
+
+        // Pour les autres statuts, mettre à jour normalement
         $shooting->status = $status;
+        $shooting->status_reason = in_array($status, $statusesRequiringReason) ? $statusReason : null;
         $shooting->save();
 
         $messages = [
             'completed' => 'Tournage marqué comme complété.',
             'pending' => 'Tournage marqué comme en attente.',
-            'cancelled' => 'Tournage marqué comme échec/annulé.',
+            'not_realized' => 'Tournage marqué comme non réalisé.',
+            'cancelled' => 'Tournage marqué comme annulé.',
         ];
 
-        return back()->with('success', $messages[$status]);
+        // Rester sur la page actuelle au lieu de rediriger vers le dashboard
+        return redirect()->route('shootings.show', $shooting)
+            ->with('success', $messages[$status]);
     }
 
     /**

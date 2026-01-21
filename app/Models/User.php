@@ -72,6 +72,14 @@ class User extends Authenticatable
     }
 
     /**
+     * Vérifie si l'utilisateur est un membre d'equipe
+     */
+    public function isTeam(): bool
+    {
+        return $this->role === 'team';
+    }
+
+    /**
      * Relation : Un utilisateur client appartient à un client
      */
     public function client()

@@ -13,7 +13,6 @@ return new class extends Migration
     {
         Schema::create('content_ideas', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('client_id')->constrained()->onDelete('cascade');
             $table->string('titre');
             $table->enum('type', ['vidéo', 'image', 'texte']);
             $table->timestamps();

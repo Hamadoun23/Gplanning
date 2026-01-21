@@ -15,7 +15,8 @@ return new class extends Migration
             $table->id();
             $table->string('username')->unique();
             $table->string('password');
-            $table->enum('role', ['admin', 'client'])->default('client');
+            $table->enum('role', ['admin', 'team', 'client'])->default('client');
+            $table->foreignId('client_id')->nullable()->constrained('clients')->onDelete('cascade');
             $table->rememberToken();
             $table->timestamps();
         });

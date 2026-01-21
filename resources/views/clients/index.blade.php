@@ -5,7 +5,9 @@
 @section('content')
     <div class="clients-header-responsive">
         <h2>Clients</h2>
-        <a href="{{ route('clients.create') }}" class="btn btn-primary">+ Nouveau client</a>
+        @if(!$isTeamReadOnly)
+            <a href="{{ route('clients.create') }}" class="btn btn-primary">+ Nouveau client</a>
+        @endif
     </div>
     
     @if($clients->count() > 0)
@@ -26,14 +28,16 @@
                             <td data-label="Tournages">{{ $client->shootings_count }}</td>
                             <td data-label="Publications">{{ $client->publications_count }}</td>
                             <td data-label="Actions" class="clients-actions-cell">
+                                <a href="{{ route('clients.show', $client) }}" class="btn btn-primary clients-action-btn" title="Voir les détails">👁️ Voir</a>
                                 <a href="{{ route('clients.dashboard', $client) }}" class="btn btn-primary clients-action-btn" title="Espace Client">📊 Dashboard</a>
-                                <a href="{{ route('clients.show', $client) }}" class="btn btn-secondary clients-action-btn">Voir</a>
-                                <a href="{{ route('clients.edit', $client) }}" class="btn btn-secondary clients-action-btn">Modifier</a>
-                                <form action="{{ route('clients.destroy', $client) }}" method="POST" class="clients-delete-form">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="submit" class="btn btn-danger clients-action-btn" onclick="return confirm('Êtes-vous sûr de vouloir supprimer ce client ?')">Supprimer</button>
-                                </form>
+                                @if(!$isTeamReadOnly)
+                                    <a href="{{ route('clients.edit', $client) }}" class="btn btn-secondary clients-action-btn">Modifier</a>
+                                    <form action="{{ route('clients.destroy', $client) }}" method="POST" class="clients-delete-form">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="btn btn-danger clients-action-btn" onclick="return confirm('Êtes-vous sûr de vouloir supprimer ce client ?')">Supprimer</button>
+                                    </form>
+                                @endif
                             </td>
                         </tr>
                     @endforeach
@@ -44,7 +48,9 @@
         <div class="card">
             <div class="empty-state">
                 <p>Aucun client enregistré</p>
-                <a href="{{ route('clients.create') }}" class="btn btn-primary" style="margin-top: 1rem;">Créer le premier client</a>
+                @if(!$isTeamReadOnly)
+                    <a href="{{ route('clients.create') }}" class="btn btn-primary" style="margin-top: 1rem;">Créer le premier client</a>
+                @endif
             </div>
         </div>
     @endif

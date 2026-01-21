@@ -13,7 +13,7 @@ class ContentIdeaController extends Controller
     public function index()
     {
         $contentIdeas = ContentIdea::orderBy('created_at', 'desc')->get();
-        return view('content-ideas.index', compact('contentIdeas'));
+        return $this->viewForRole('content-ideas.index', compact('contentIdeas'));
     }
 
     /**
@@ -57,7 +57,7 @@ class ContentIdeaController extends Controller
      */
     public function show(ContentIdea $contentIdea)
     {
-        return view('content-ideas.show', compact('contentIdea'));
+        return $this->viewForRole('content-ideas.show', compact('contentIdea'));
     }
 
     /**

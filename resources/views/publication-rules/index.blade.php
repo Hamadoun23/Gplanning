@@ -10,8 +10,8 @@
             <p style="color: #999; font-size: 0.9rem; margin-top: 0.5rem;">Les jours non recommandés afficheront un avertissement lors de la création d'une publication</p>
         </div>
         <div>
-            <a href="{{ route('clients.show', $client) }}" class="btn btn-secondary" style="margin-right: 0.5rem;">Retour au client</a>
-            @if(count($rules) < 7)
+            <a href="{{ route('clients.dashboard', $client) }}" class="btn btn-secondary" style="margin-right: 0.5rem;">Retour au client</a>
+            @if(!$isTeamReadOnly && count($rules) < 7)
                 <a href="{{ route('clients.publication-rules.create', $client) }}" class="btn btn-primary">+ Ajouter une règle</a>
             @endif
         </div>
@@ -31,11 +31,15 @@
                         <tr>
                             <td><strong>{{ ucfirst($rule->day_of_week) }}</strong></td>
                             <td>
-                                <form action="{{ route('clients.publication-rules.destroy', [$client, $rule]) }}" method="POST" style="display: inline;">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="submit" class="btn btn-danger" style="padding: 0.25rem 0.5rem; font-size: 0.85rem;" onclick="return confirm('Êtes-vous sûr de vouloir supprimer cette règle ?')">Supprimer</button>
-                                </form>
+                                @if(!$isTeamReadOnly)
+                                    <form action="{{ route('clients.publication-rules.destroy', [$client, $rule]) }}" method="POST" style="display: inline;">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="btn btn-danger" style="padding: 0.25rem 0.5rem; font-size: 0.85rem;" onclick="return confirm('Êtes-vous sûr de vouloir supprimer cette règle ?')">Supprimer</button>
+                                    </form>
+                                @else
+                                    <span style="color: #999;">Lecture seule</span>
+                                @endif
                             </td>
                         </tr>
                     @endforeach
@@ -46,7 +50,9 @@
         <div class="card">
             <div class="empty-state">
                 <p>Aucune règle de publication pour ce client</p>
-                <a href="{{ route('clients.publication-rules.create', $client) }}" class="btn btn-primary" style="margin-top: 1rem;">Créer la première règle</a>
+                @if(!$isTeamReadOnly)
+                    <a href="{{ route('clients.publication-rules.create', $client) }}" class="btn btn-primary" style="margin-top: 1rem;">Créer la première règle</a>
+                @endif
             </div>
         </div>
     @endif

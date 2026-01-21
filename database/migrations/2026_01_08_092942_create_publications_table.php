@@ -14,9 +14,12 @@ return new class extends Migration
         Schema::create('publications', function (Blueprint $table) {
             $table->id();
             $table->foreignId('client_id')->constrained()->onDelete('cascade');
-            $table->date('date');
+            $table->datetime('date');
+            $table->text('description')->nullable();
             $table->foreignId('content_idea_id')->constrained()->onDelete('cascade');
             $table->foreignId('shooting_id')->nullable()->constrained()->onDelete('set null');
+            $table->enum('status', ['pending', 'completed', 'not_realized', 'cancelled', 'rescheduled'])->default('pending');
+            $table->text('status_reason')->nullable();
             $table->timestamps();
         });
     }

@@ -60,7 +60,7 @@
                                      data-event-id="{{ $shooting->id }}"
                                      style="background-color: {{ $bgColor }}; color: white; padding: 0.25rem 0.5rem; margin-bottom: 0.25rem; border-radius: 3px; font-size: 0.7rem; cursor: pointer; border-left: 3px solid {{ $borderColor }};" 
                                      onclick="event.stopPropagation(); window.location.href='{{ route('shootings.show', $shooting) }}'"
-                                     title="Tournage - {{ $shooting->client->nom_entreprise }} - {{ $shooting->status === 'completed' ? 'Complété' : ($shooting->isOverdue() ? 'En retard' : ($shooting->isUpcoming() ? 'Approche' : 'En attente')) }}">
+                                     title="Tournage - {{ $shooting->client->nom_entreprise }} - {{ $shooting->date->format('d/m/Y H:i') }} - {{ $shooting->status === 'completed' ? 'Complété' : ($shooting->isOverdue() ? 'En retard' : ($shooting->isUpcoming() ? 'Approche' : 'En attente')) }}">
                                     <strong>{{ $icon }} {{ $shooting->client->nom_entreprise }}</strong>
                                     @if($shooting->contentIdeas->count() > 0)
                                         <br><small>{{ $shooting->contentIdeas->count() }} idée(s)</small>
@@ -79,10 +79,18 @@
                                     $icon = '📢';
                                     $textColor = 'white';
                                     
-                                    if ($publication->status === 'cancelled') {
+                                    if ($publication->status === 'not_realized') {
                                         $bgColor = '#6c757d';
                                         $borderColor = '#5a6268';
                                         $icon = '❌';
+                                    } elseif ($publication->status === 'cancelled') {
+                                        $bgColor = '#6c757d';
+                                        $borderColor = '#5a6268';
+                                        $icon = '🚫';
+                                    } elseif ($publication->status === 'rescheduled') {
+                                        $bgColor = '#17a2b8';
+                                        $borderColor = '#138496';
+                                        $icon = '📅';
                                     } elseif ($publication->isCompleted()) {
                                         $bgColor = '#28a745';
                                         $borderColor = '#1e7e34';
@@ -107,7 +115,7 @@
                                      data-event-id="{{ $publication->id }}"
                                      style="background-color: {{ $bgColor }}; color: {{ $textColor }}; padding: 0.25rem 0.5rem; margin-bottom: 0.25rem; border-radius: 3px; font-size: 0.7rem; cursor: pointer; border-left: 3px solid {{ $borderColor }};" 
                                      onclick="event.stopPropagation(); window.location.href='{{ route('publications.show', $publication) }}'"
-                                     title="Publication - {{ $publication->client->nom_entreprise }} - {{ $publication->contentIdea->titre }} - {{ $publication->status === 'completed' ? 'Complétée' : ($publication->isOverdue() ? 'En retard' : ($publication->isUpcoming() ? 'Approche' : 'En attente')) }}">
+                                     title="Publication - {{ $publication->client->nom_entreprise }} - {{ $publication->date->format('d/m/Y H:i') }} - {{ $publication->contentIdea->titre }} - {{ $publication->status === 'completed' ? 'Complétée' : ($publication->isOverdue() ? 'En retard' : ($publication->isUpcoming() ? 'Approche' : 'En attente')) }}">
                                     <strong>{{ $icon }} {{ $publication->client->nom_entreprise }}</strong>
                                     <br><small>{{ mb_strlen($publication->contentIdea->titre) > 15 ? mb_substr($publication->contentIdea->titre, 0, 15) . '...' : $publication->contentIdea->titre }}</small>
                                     @if($hasWarning && !$publication->isUpcoming())
