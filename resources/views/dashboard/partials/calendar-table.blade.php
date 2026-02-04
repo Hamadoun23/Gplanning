@@ -60,10 +60,11 @@
                                      data-event-id="{{ $shooting->id }}"
                                      style="background-color: {{ $bgColor }}; color: white; padding: 0.25rem 0.5rem; margin-bottom: 0.25rem; border-radius: 3px; font-size: 0.7rem; cursor: pointer; border-left: 3px solid {{ $borderColor }};" 
                                      onclick="event.stopPropagation(); window.location.href='{{ route('shootings.show', $shooting) }}'"
-                                     title="Tournage - {{ $shooting->client->nom_entreprise }} - {{ $shooting->date->format('d/m/Y H:i') }} - {{ $shooting->status === 'completed' ? 'Complété' : ($shooting->isOverdue() ? 'En retard' : ($shooting->isUpcoming() ? 'Approche' : 'En attente')) }}">
+                                     title="Tournage - {{ $shooting->client->nom_entreprise }} - {{ $shooting->date->format('d/m/Y H:i') }} - {{ $shooting->contentIdeas->first()?->titre ?? 'Aucune idée' }} - {{ $shooting->status === 'completed' ? 'Complété' : ($shooting->isOverdue() ? 'En retard' : ($shooting->isUpcoming() ? 'Approche' : 'En attente')) }}">
                                     <strong>{{ $icon }} {{ $shooting->client->nom_entreprise }}</strong>
                                     @if($shooting->contentIdeas->count() > 0)
-                                        <br><small>{{ $shooting->contentIdeas->count() }} idée(s)</small>
+                                        @php $contentIdea = $shooting->contentIdeas->first(); @endphp
+                                        <br><small>{{ mb_strlen($contentIdea->titre) > 15 ? mb_substr($contentIdea->titre, 0, 15) . '...' : $contentIdea->titre }}</small>
                                     @endif
                                 </div>
                             @endforeach

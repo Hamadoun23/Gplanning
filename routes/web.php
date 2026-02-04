@@ -121,7 +121,6 @@ Route::middleware(['auth'])->group(function () {
         Route::get('clients/{client}/stats', [ClientController::class, 'getStats'])->name('clients.get-stats');
         Route::get('clients/{client}/events', [ClientController::class, 'getEvents'])->name('clients.get-events');
         Route::post('clients/{client}/upload-report', [ClientController::class, 'uploadReport'])->name('clients.upload-report');
-        Route::get('clients/{client}/reports/{report}/download', [ClientController::class, 'downloadReport'])->name('clients.reports.download');
         Route::delete('clients/{client}/reports/{report}', [ClientController::class, 'deleteReport'])->name('clients.reports.delete');
     });
 
@@ -134,6 +133,25 @@ Route::middleware(['auth'])->group(function () {
     Route::get('clients/{client}/generate-report', [ClientController::class, 'generateReport'])
         ->middleware('client.access')
         ->name('clients.generate-report');
+        
+    // Téléchargement de rapports (accessible aux admins et aux clients pour leur propre espace)
+    Route::get('clients/{client}/reports/{report}/download', [ClientController::class, 'downloadReport'])
+        ->middleware('client.access')
+        ->name('clients.reports.download');
+        
+    // Vues détaillées pour les clients (lecture seule)
+    Route::get('clients/{client}/shootings/{shooting}', [ClientController::class, 'showShooting'])
+        ->middleware('client.access')
+        ->name('clients.shootings.show');
+        
+    Route::get('clients/{client}/publications/{publication}', [ClientController::class, 'showPublication'])
+        ->middleware('client.access')
+        ->name('clients.publications.show');
+        
+    // Route AJAX pour charger les événements (accessible aux clients)
+    Route::get('clients/{client}/client-events', [ClientController::class, 'getClientEvents'])
+        ->middleware('client.access')
+        ->name('clients.client-events');
 
     // Routes réservées aux admins (team en lecture seule)
     Route::middleware(['admin.or.team', 'team.readonly'])->group(function () {
@@ -364,10 +382,45 @@ Route::middleware(['auth'])->group(function () {
             
             $months = ['', 'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
             
+            // Calculer les statistiques pour le mois sélectionné
+            $stats = [
+                'total_shootings' => $client->shootings()
+                    ->whereBetween('date', [$startDate->format('Y-m-d'), $endDate->format('Y-m-d')])
+                    ->count(),
+                'total_publications' => $client->publications()
+                    ->whereBetween('date', [$startDate->format('Y-m-d'), $endDate->format('Y-m-d')])
+                    ->count(),
+                'pending_shootings' => $client->shootings()
+                    ->whereBetween('date', [$startDate->format('Y-m-d'), $endDate->format('Y-m-d')])
+                    ->where('status', 'pending')
+                    ->count(),
+                'completed_shootings' => $client->shootings()
+                    ->whereBetween('date', [$startDate->format('Y-m-d'), $endDate->format('Y-m-d')])
+                    ->where('status', 'completed')
+                    ->count(),
+                'non_realises_shootings' => $client->shootings()
+                    ->whereBetween('date', [$startDate->format('Y-m-d'), $endDate->format('Y-m-d')])
+                    ->whereIn('status', ['not_realized', 'cancelled'])
+                    ->count(),
+                'pending_publications' => $client->publications()
+                    ->whereBetween('date', [$startDate->format('Y-m-d'), $endDate->format('Y-m-d')])
+                    ->where('status', 'pending')
+                    ->count(),
+                'completed_publications' => $client->publications()
+                    ->whereBetween('date', [$startDate->format('Y-m-d'), $endDate->format('Y-m-d')])
+                    ->where('status', 'completed')
+                    ->count(),
+                'non_realises_publications' => $client->publications()
+                    ->whereBetween('date', [$startDate->format('Y-m-d'), $endDate->format('Y-m-d')])
+                    ->whereIn('status', ['not_realized', 'cancelled'])
+                    ->count(),
+            ];
+            
             return response()->json([
                 'html' => $html,
                 'month_name' => $months[$month],
-                'year' => $year
+                'year' => $year,
+                'stats' => $stats
             ]);
         });
         

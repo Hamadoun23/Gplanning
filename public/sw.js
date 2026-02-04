@@ -1,6 +1,6 @@
 // Service Worker pour Gplanning PWA
-const CACHE_NAME = 'gplanning-v1.0.1';
-const RUNTIME_CACHE = 'gplanning-runtime-v1.0.1';
+const CACHE_NAME = 'gplanning-v1.0.2';
+const RUNTIME_CACHE = 'gplanning-runtime-v1.0.2';
 
 // Fichiers statiques à mettre en cache lors de l'installation
 const STATIC_CACHE_URLS = [

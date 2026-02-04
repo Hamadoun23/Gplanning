@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Client;
 use App\Models\ClientReport;
+use App\Models\Shooting;
+use App\Models\Publication;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
@@ -593,7 +595,16 @@ class ClientController extends Controller
         $request->validate([
             'report_type' => 'required|in:monthly,annual',
             'report_date' => 'required|date',
-            'report_file' => 'required|file|mimes:pdf|max:10240', // Max 10MB
+            'report_file' => 'required|file|mimes:pdf|max:51200', // Max 50MB
+        ], [
+            'report_type.required' => 'Le type de rapport est obligatoire.',
+            'report_type.in' => 'Le type de rapport doit être mensuel ou annuel.',
+            'report_date.required' => 'La date du rapport est obligatoire.',
+            'report_date.date' => 'La date du rapport doit être une date valide.',
+            'report_file.required' => 'Le fichier PDF est obligatoire.',
+            'report_file.file' => 'Le fichier doit être un fichier valide.',
+            'report_file.mimes' => 'Le fichier doit être au format PDF.',
+            'report_file.max' => 'Le fichier ne doit pas dépasser 50 Mo.',
         ]);
 
         try {
@@ -759,14 +770,17 @@ class ClientController extends Controller
                         ->orderBy('date')
                         ->with('contentIdeas')
                         ->get()
-                        ->map(function($shooting) {
+                        ->map(function($shooting) use ($client) {
+                            $contentTitle = $shooting->contentIdeas->count() > 0 
+                                ? $shooting->contentIdeas->first()->titre 
+                                : 'Aucune idée de contenu';
                             return [
                                 'id' => $shooting->id,
                                 'type' => 'shooting',
                                 'date' => $shooting->date->format('d/m/Y H:i'),
                                 'title' => 'Tournage',
-                                'details' => $shooting->contentIdeas->count() . ' idée(s) de contenu' . ($shooting->description ? ' • ' . Str::limit($shooting->description, 50) : ''),
-                                'url' => route('shootings.show', $shooting),
+                                'details' => $contentTitle . ($shooting->description ? ' • ' . Str::limit($shooting->description, 50) : ''),
+                                'url' => route('clients.shootings.show', [$client, $shooting]),
                             ];
                         });
                     break;
@@ -779,7 +793,7 @@ class ClientController extends Controller
                         ->orderBy('date')
                         ->with(['contentIdea', 'shooting'])
                         ->get()
-                        ->map(function($publication) {
+                        ->map(function($publication) use ($client) {
                             if (!$publication->contentIdea) {
                                 return null;
                             }
@@ -792,7 +806,7 @@ class ClientController extends Controller
                                 'date' => $publication->date->format('d/m/Y H:i'),
                                 'title' => $publication->contentIdea->titre,
                                 'details' => $shootingText . ($publication->description ? ' • ' . Str::limit($publication->description, 50) : ''),
-                                'url' => route('publications.show', $publication),
+                                'url' => route('clients.publications.show', [$client, $publication]),
                             ];
                         })
                         ->filter(); // Retirer les null
@@ -805,21 +819,24 @@ class ClientController extends Controller
                         ->orderBy('date', 'desc')
                         ->with('contentIdeas')
                         ->get()
-                        ->map(function($shooting) {
+                        ->map(function($shooting) use ($client) {
                             $statusBadge = '';
                             if ($shooting->isCompleted()) {
                                 $statusBadge = '<span class="status-badge completed">Complété</span>';
                             } elseif ($shooting->status === 'cancelled') {
                                 $statusBadge = '<span class="status-badge cancelled">Annulé</span>';
                             }
+                            $contentTitle = $shooting->contentIdeas->count() > 0 
+                                ? $shooting->contentIdeas->first()->titre 
+                                : 'Aucune idée de contenu';
                             return [
                                 'id' => $shooting->id,
                                 'type' => 'shooting',
                                 'date' => $shooting->date->format('d/m/Y H:i'),
                                 'title' => 'Tournage',
                                 'titleHtml' => 'Tournage ' . $statusBadge,
-                                'details' => $shooting->contentIdeas->count() . ' idée(s) de contenu' . ($shooting->description ? ' • ' . Str::limit($shooting->description, 50) : ''),
-                                'url' => route('shootings.show', $shooting),
+                                'details' => $contentTitle . ($shooting->description ? ' • ' . Str::limit($shooting->description, 50) : ''),
+                                'url' => route('clients.shootings.show', [$client, $shooting]),
                             ];
                         });
                     break;
@@ -831,7 +848,7 @@ class ClientController extends Controller
                         ->orderBy('date', 'desc')
                         ->with(['contentIdea', 'shooting'])
                         ->get()
-                        ->map(function($publication) {
+                        ->map(function($publication) use ($client) {
                             if (!$publication->contentIdea) {
                                 return null;
                             }
@@ -851,7 +868,7 @@ class ClientController extends Controller
                                 'title' => $publication->contentIdea->titre,
                                 'titleHtml' => $publication->contentIdea->titre . ' ' . $statusBadge,
                                 'details' => $shootingText . ($publication->description ? ' • ' . Str::limit($publication->description, 50) : ''),
-                                'url' => route('publications.show', $publication),
+                                'url' => route('clients.publications.show', [$client, $publication]),
                             ];
                         })
                         ->filter(); // Retirer les null
@@ -873,5 +890,44 @@ class ClientController extends Controller
             ]);
             return response()->json(['error' => 'Erreur lors du chargement des événements: ' . $e->getMessage()], 500);
         }
+    }
+    
+    /**
+     * Récupère tous les événements d'un type spécifique pour les clients (AJAX)
+     */
+    public function getClientEvents(Request $request, Client $client)
+    {
+        // Réutilise la même logique que getEvents
+        return $this->getEvents($request, $client);
+    }
+    
+    /**
+     * Affiche les détails d'un tournage pour le client (lecture seule)
+     */
+    public function showShooting(Client $client, Shooting $shooting)
+    {
+        // Vérifier que le tournage appartient bien au client
+        if ($shooting->client_id !== $client->id) {
+            abort(403, 'Accès non autorisé à ce tournage.');
+        }
+        
+        $shooting->load(['client', 'contentIdeas']);
+        
+        return view('client-space.shootings.show', compact('client', 'shooting'));
+    }
+    
+    /**
+     * Affiche les détails d'une publication pour le client (lecture seule)
+     */
+    public function showPublication(Client $client, Publication $publication)
+    {
+        // Vérifier que la publication appartient bien au client
+        if ($publication->client_id !== $client->id) {
+            abort(403, 'Accès non autorisé à cette publication.');
+        }
+        
+        $publication->load(['client', 'contentIdea', 'shooting']);
+        
+        return view('client-space.publications.show', compact('client', 'publication'));
     }
 }

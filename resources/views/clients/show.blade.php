@@ -74,18 +74,6 @@
                 </div>
             </div>
         </div>
-        
-        <div class="client-stat-card">
-            <div class="stat-icon">📅</div>
-            <div class="stat-content">
-                <h3>Période sélectionnée</h3>
-                <div class="stat-value" id="stat-total-period">{{ $stats['shootings_this_month'] + $stats['publications_this_month'] }}</div>
-                <div class="stat-details">
-                    <span class="stat-info" id="stat-shootings-period">{{ $stats['shootings_this_month'] }} tournages</span>
-                    <span class="stat-info" id="stat-publications-period">{{ $stats['publications_this_month'] }} publications</span>
-                </div>
-            </div>
-        </div>
     </div>
     
     <!-- Calendrier du client -->

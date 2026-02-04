@@ -26,7 +26,6 @@
                             <td data-label="Publications">{{ $client->publications_count }}</td>
                             <td data-label="Actions" class="clients-actions-cell">
                                 <a href="{{ route('clients.show', $client) }}" class="btn btn-primary clients-action-btn" title="Voir les détails">👁️ Voir</a>
-                                <a href="{{ route('clients.dashboard', $client) }}" class="btn btn-primary clients-action-btn" title="Espace Client">📊 Dashboard</a>
                             </td>
                         </tr>
                     @endforeach

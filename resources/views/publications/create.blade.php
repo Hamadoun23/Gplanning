@@ -153,7 +153,7 @@
                         </div>
                     </div>
                     <div class="form-help-text">
-                        <a href="{{ route('content-ideas.create', ['return_to' => route('publications.create', ['client_id' => $selectedClient, 'date' => $selectedDate])]) }}" target="_blank" class="help-link">
+                        <a href="{{ route('content-ideas.create', ['return_to' => route('publications.create', ['client_id' => $selectedClient, 'date' => $selectedDate])]) }}" class="help-link">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <circle cx="12" cy="12" r="10"></circle>
                                 <line x1="12" y1="16" x2="12" y2="12"></line>
@@ -656,7 +656,7 @@
                             conflictDiv.innerHTML = `
                                 <span style="font-size: 1.2rem;">${icon}</span>
                                 <span>${eventIcon} ${conflict.message}</span>
-                                <a href="${conflict.url}" target="_blank" style="margin-left: auto; color: inherit; text-decoration: underline; font-weight: 600;">Voir</a>
+                                <a href="${conflict.url}" style="margin-left: auto; color: inherit; text-decoration: underline; font-weight: 600;">Voir</a>
                             `;
                             warningsDiv.appendChild(conflictDiv);
                         });

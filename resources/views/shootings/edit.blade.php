@@ -20,7 +20,7 @@
         
         <!-- Main Form Card -->
         <div class="form-card-modern" data-gsap="fadeInUp">
-            <form action="{{ route('shootings.update', $shooting) }}" method="POST" id="shooting-form" class="publication-form-modern">
+            <form action="{{ route('shootings.update', $shooting) }}" method="POST" id="shooting-form" class="publication-form-modern" autocomplete="off">
                 @csrf
                 @method('PUT')
                 
@@ -45,10 +45,10 @@
                         <span class="label-text">Client <span class="required-star">*</span></span>
                     </label>
                     <div class="select-wrapper-modern">
-                        <select id="client_id" name="client_id" required class="select-modern">
+                        <select id="client_id" name="client_id" required class="select-modern" autocomplete="off">
                             <option value="">Sélectionner un client</option>
                             @foreach($clients as $c)
-                                <option value="{{ $c->id }}" {{ $shooting->client_id == $c->id ? 'selected' : '' }}>{{ $c->nom_entreprise }}</option>
+                                <option value="{{ $c->id }}" {{ (int)$shooting->client_id === (int)$c->id ? 'selected' : '' }}>{{ $c->nom_entreprise }}</option>
                             @endforeach
                         </select>
                         <div class="select-arrow">
@@ -73,7 +73,7 @@
                         <span class="label-text">Date et heure <span class="required-star">*</span></span>
                     </label>
                     <div class="input-wrapper-modern">
-                        <input type="datetime-local" id="date" name="date" value="{{ $shooting->date ? $shooting->date->format('Y-m-d\TH:i') : '' }}" required class="input-modern" data-realtime-check data-check-type="shooting" data-exclude-id="{{ $shooting->id }}">
+                        <input type="datetime-local" id="date" name="date" value="{{ $shooting->date ? $shooting->date->format('Y-m-d\TH:i') : '' }}" required class="input-modern" autocomplete="off" data-realtime-check data-check-type="shooting" data-exclude-id="{{ $shooting->id }}">
                         <div class="input-focus-line"></div>
                     </div>
                     <div id="date-warnings" class="warnings-container"></div>
@@ -94,7 +94,7 @@
                         <span class="label-text">Description</span>
                     </label>
                     <div class="textarea-wrapper-modern">
-                        <textarea id="description" name="description" rows="5" class="textarea-modern" placeholder="Décrivez le tournage (optionnel)...">{{ $shooting->description ?? '' }}</textarea>
+                        <textarea id="description" name="description" rows="5" class="textarea-modern" placeholder="Décrivez le tournage (optionnel)..." autocomplete="off">{{ $shooting->description ?? '' }}</textarea>
                         <div class="textarea-focus-line"></div>
                     </div>
                     <div class="char-counter">
@@ -114,7 +114,7 @@
                         <span class="label-text">Idée de contenu <span class="required-star">*</span></span>
                     </label>
                     <div class="select-wrapper-modern">
-                        <select id="content_idea_id" name="content_idea_id" required class="select-modern">
+                        <select id="content_idea_id" name="content_idea_id" required class="select-modern" autocomplete="off">
                             <option value="">Sélectionner une idée</option>
                             @if($contentIdeas->count() > 0)
                                 @foreach($contentIdeas as $idea)
@@ -129,7 +129,7 @@
                         </div>
                     </div>
                     <div class="form-help-text">
-                        <a href="{{ route('content-ideas.create') }}" target="_blank" class="help-link">
+                        <a href="{{ route('content-ideas.create') }}" class="help-link">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <circle cx="12" cy="12" r="10"></circle>
                                 <line x1="12" y1="16" x2="12" y2="12"></line>
@@ -504,6 +504,30 @@
             const submitBtn = document.getElementById('submit-btn');
             const excludeId = dateInput.getAttribute('data-exclude-id');
             
+            // IMPORTANT: Forcer les valeurs correctes depuis les données du serveur
+            // pour contrer l'autocomplete du navigateur
+            const correctClientId = '{{ $shooting->client_id }}';
+            const correctDate = '{{ $shooting->date ? $shooting->date->format("Y-m-d\TH:i") : "" }}';
+            const correctDescription = @json($shooting->description ?? '');
+            const correctContentIdeaId = '{{ $shooting->contentIdeas->first()?->id ?? "" }}';
+            
+            // Forcer les valeurs après un court délai pour s'assurer que l'autocomplete est terminé
+            setTimeout(function() {
+                if (clientSelect.value !== correctClientId) {
+                    clientSelect.value = correctClientId;
+                }
+                if (dateInput.value !== correctDate) {
+                    dateInput.value = correctDate;
+                }
+                if (descriptionTextarea.value !== correctDescription) {
+                    descriptionTextarea.value = correctDescription;
+                }
+                const contentIdeaSelect = document.getElementById('content_idea_id');
+                if (contentIdeaSelect && contentIdeaSelect.value !== correctContentIdeaId) {
+                    contentIdeaSelect.value = correctContentIdeaId;
+                }
+            }, 50);
+            
             // Character counter for description
             if (descriptionTextarea && charCount) {
                 function updateCharCount() {
@@ -550,7 +574,7 @@
                             conflictDiv.innerHTML = `
                                 <span style="font-size: 1.2rem;">${icon}</span>
                                 <span>${eventIcon} ${conflict.message}</span>
-                                <a href="${conflict.url}" target="_blank" style="margin-left: auto; color: inherit; text-decoration: underline; font-weight: 600;">Voir</a>
+                                <a href="${conflict.url}" style="margin-left: auto; color: inherit; text-decoration: underline; font-weight: 600;">Voir</a>
                             `;
                             warningsDiv.appendChild(conflictDiv);
                         });

@@ -221,16 +221,14 @@ class ShootingController extends Controller
     /**
      * Affiche le formulaire d'édition
      */
-    public function edit(Request $request, Shooting $shooting)
+    public function edit(Request $request, $id)
     {
         // Effacer complètement la session old() pour forcer l'utilisation des données de la DB
         $request->session()->forget('_old_input');
         
-        // Recharger le tournage depuis la base de données pour s'assurer d'avoir les données à jour
-        $shooting->refresh();
+        // Charger le shooting directement depuis la DB avec l'ID de l'URL
+        $shooting = Shooting::with(['client', 'contentIdeas'])->findOrFail($id);
         
-        // Charger toutes les relations nécessaires
-        $shooting->load(['client', 'contentIdeas']);
         $clients = Client::orderBy('nom_entreprise')->get();
         // Toutes les idées de contenu sont disponibles pour tous les clients
         $contentIdeas = ContentIdea::orderBy('titre')->get();

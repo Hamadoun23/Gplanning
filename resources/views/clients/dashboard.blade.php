@@ -70,18 +70,6 @@
                 </div>
             </div>
         </div>
-        
-        <div class="client-stat-card">
-            <div class="stat-icon">📅</div>
-            <div class="stat-content">
-                <h3>Période sélectionnée</h3>
-                <div class="stat-value" id="stat-total-period">{{ $stats['shootings_this_month'] + $stats['publications_this_month'] }}</div>
-                <div class="stat-details">
-                    <span class="stat-info" id="stat-shootings-period">{{ $stats['shootings_this_month'] }} tournages</span>
-                    <span class="stat-info" id="stat-publications-period">{{ $stats['publications_this_month'] }} publications</span>
-                </div>
-            </div>
-        </div>
     </div>
     
     <!-- Calendrier du client -->
@@ -165,13 +153,17 @@
                             <div class="event-content">
                                 <div class="event-title">Tournage</div>
                                 <div class="event-details">
-                                    {{ $shooting->contentIdeas->count() }} idée(s) de contenu
+                                    @if($shooting->contentIdeas->count() > 0)
+                                        {{ $shooting->contentIdeas->first()->titre }}
+                                    @else
+                                        Aucune idée de contenu
+                                    @endif
                                     @if($shooting->description)
                                         • {{ Str::limit($shooting->description, 50) }}
                                     @endif
                                 </div>
                             </div>
-                            <a href="{{ route('shootings.show', $shooting) }}" class="btn btn-primary btn-sm">Voir</a>
+                            <a href="{{ route('clients.shootings.show', [$client, $shooting]) }}" class="btn btn-primary btn-sm">Voir</a>
                         </div>
                     @endforeach
                 </div>
@@ -210,7 +202,7 @@
                                     @endif
                                 </div>
                             </div>
-                            <a href="{{ route('publications.show', $publication) }}" class="btn btn-primary btn-sm">Voir</a>
+                            <a href="{{ route('clients.publications.show', [$client, $publication]) }}" class="btn btn-primary btn-sm">Voir</a>
                         </div>
                     @endforeach
                 </div>
@@ -246,13 +238,17 @@
                                     @endif
                                 </div>
                                 <div class="event-details">
-                                    {{ $shooting->contentIdeas->count() }} idée(s) de contenu
+                                    @if($shooting->contentIdeas->count() > 0)
+                                        {{ $shooting->contentIdeas->first()->titre }}
+                                    @else
+                                        Aucune idée de contenu
+                                    @endif
                                     @if($shooting->description)
                                         • {{ Str::limit($shooting->description, 50) }}
                                     @endif
                                 </div>
                             </div>
-                            <a href="{{ route('shootings.show', $shooting) }}" class="btn btn-primary btn-sm">Voir</a>
+                            <a href="{{ route('clients.shootings.show', [$client, $shooting]) }}" class="btn btn-primary btn-sm">Voir</a>
                         </div>
                     @endforeach
                 </div>
@@ -298,7 +294,7 @@
                                     @endif
                                 </div>
                             </div>
-                            <a href="{{ route('publications.show', $publication) }}" class="btn btn-primary btn-sm">Voir</a>
+                            <a href="{{ route('clients.publications.show', [$client, $publication]) }}" class="btn btn-primary btn-sm">Voir</a>
                         </div>
                     @endforeach
                 </div>
@@ -1546,6 +1542,19 @@
                     
                     // Remplacer le contenu du calendrier
                     calendarWrapper.innerHTML = '<div id="calendarLoading" style="display: none; text-align: center; padding: 2rem; color: #666;"><p>Chargement du planning...</p></div>' + data.html;
+                    
+                    // Mettre à jour les statistiques
+                    if (data.stats) {
+                        document.getElementById('stat-total-shootings').textContent = data.stats.total_shootings;
+                        document.getElementById('stat-pending-shootings').textContent = data.stats.pending_shootings + ' en attente';
+                        document.getElementById('stat-completed-shootings').textContent = data.stats.completed_shootings + ' complétés';
+                        document.getElementById('stat-non-realises-shootings').textContent = data.stats.non_realises_shootings + ' non réalisés';
+                        
+                        document.getElementById('stat-total-publications').textContent = data.stats.total_publications;
+                        document.getElementById('stat-pending-publications').textContent = data.stats.pending_publications + ' en attente';
+                        document.getElementById('stat-completed-publications').textContent = data.stats.completed_publications + ' complétées';
+                        document.getElementById('stat-non-realises-publications').textContent = data.stats.non_realises_publications + ' non réalisées';
+                    }
                 })
                 .catch(error => {
                     console.error('Erreur:', error);
@@ -1740,8 +1749,13 @@
             modalList.innerHTML = '';
             
             // Charger les événements via AJAX
-            fetch(`{{ route('clients.get-events', $client) }}?type=${type}`)
+            fetch(`{{ route('clients.client-events', $client) }}?type=${type}`)
                 .then(response => {
+                    // Vérifier si la réponse est du JSON
+                    const contentType = response.headers.get('content-type');
+                    if (!contentType || !contentType.includes('application/json')) {
+                        throw new Error('NO_MORE_EVENTS');
+                    }
                     if (!response.ok) {
                         return response.json().then(data => {
                             throw new Error(data.error || 'Erreur HTTP ' + response.status);
@@ -1754,7 +1768,7 @@
                     modalList.style.display = 'block';
                     
                     if (data.error) {
-                        modalList.innerHTML = `<div class="empty-state"><p style="color: #dc3545;">${data.error}</p></div>`;
+                        modalList.innerHTML = `<div class="empty-state"><p style="color: #6c757d;">C'est tout ! Pas d'autres événements à afficher.</p></div>`;
                         return;
                     }
                     
@@ -1773,14 +1787,15 @@
                             `;
                         }).join('');
                     } else {
-                        modalList.innerHTML = '<div class="empty-state"><p>Aucun événement</p></div>';
+                        modalList.innerHTML = '<div class="empty-state"><p>C\'est tout ! Aucun autre événement à afficher.</p></div>';
                     }
                 })
                 .catch(error => {
                     console.error('Erreur:', error);
                     modalLoading.style.display = 'none';
                     modalList.style.display = 'block';
-                    modalList.innerHTML = `<div class="empty-state"><p style="color: #dc3545;">Erreur lors du chargement des événements: ${error.message}</p></div>`;
+                    // Message convivial au lieu de l'erreur technique
+                    modalList.innerHTML = `<div class="empty-state"><p style="color: #6c757d;">C'est tout ! Pas d'autres événements à afficher.</p></div>`;
                 });
         };
         
@@ -1795,8 +1810,143 @@
                 if (eventsModal && eventsModal.classList.contains('active')) {
                     closeEventsModal();
                 }
+                const dateModal = document.getElementById('clientDateModal');
+                if (dateModal && dateModal.style.display === 'flex') {
+                    closeClientDateModal();
+                }
             }
         });
+        
+        // === Modal pour afficher les événements d'une date ===
+        // clientId est déjà déclaré plus haut
+        
+        window.openClientDateModal = function(date) {
+            const modal = document.getElementById('clientDateModal');
+            const modalDateText = document.getElementById('clientModalDateText');
+            const modalLoading = document.getElementById('clientModalLoading');
+            const modalContent = document.getElementById('clientModalContent');
+            
+            // Formater la date en français
+            const dateObj = new Date(date + 'T00:00:00');
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            const dateFormatted = dateObj.toLocaleDateString('fr-FR', options);
+            modalDateText.textContent = dateFormatted;
+            
+            // Afficher la modal
+            modal.style.display = 'flex';
+            modalLoading.style.display = 'block';
+            modalContent.style.display = 'none';
+            
+            // Charger les événements
+            fetch(`/api/client-events-by-date?date=${date}&client_id=${clientId}`)
+                .then(response => response.json())
+                .then(data => {
+                    modalLoading.style.display = 'none';
+                    modalContent.style.display = 'block';
+                    displayClientShootings(data.shootings || [], date);
+                    displayClientPublications(data.publications || [], date);
+                })
+                .catch(error => {
+                    console.error('Erreur:', error);
+                    modalLoading.style.display = 'none';
+                    modalContent.style.display = 'block';
+                    document.getElementById('clientShootingsList').innerHTML = '<p style="color: #dc3545;">Erreur de chargement</p>';
+                    document.getElementById('clientPublicationsList').innerHTML = '';
+                });
+        };
+        
+        window.closeClientDateModal = function() {
+            const modal = document.getElementById('clientDateModal');
+            modal.style.display = 'none';
+        };
+        
+        function displayClientShootings(shootings, date) {
+            const container = document.getElementById('clientShootingsList');
+            
+            if (shootings.length === 0) {
+                container.innerHTML = '<p class="no-events">Aucun tournage ce jour</p>';
+                return;
+            }
+            
+            container.innerHTML = shootings.map(shooting => {
+                let statusClass = 'status-pending';
+                let statusIcon = '⏳';
+                if (shooting.is_completed) {
+                    statusClass = 'status-completed';
+                    statusIcon = '✅';
+                } else if (shooting.status === 'cancelled') {
+                    statusClass = 'status-cancelled';
+                    statusIcon = '❌';
+                } else if (shooting.is_overdue) {
+                    statusClass = 'status-overdue';
+                    statusIcon = '🚨';
+                } else if (shooting.is_upcoming) {
+                    statusClass = 'status-upcoming';
+                    statusIcon = '⏰';
+                }
+                
+                const contentIdeas = shooting.content_ideas && shooting.content_ideas.length > 0 
+                    ? shooting.content_ideas.join(', ') 
+                    : 'Aucune idée de contenu';
+                
+                return `
+                    <div class="event-item-client ${statusClass}">
+                        <div class="event-info">
+                            <span class="event-status-icon">${statusIcon}</span>
+                            <div class="event-details">
+                                <strong>Tournage</strong>
+                                <span class="event-status-text">${shooting.status_text}</span>
+                                <p class="event-content-ideas">${contentIdeas}</p>
+                                ${shooting.description ? `<p class="event-description">${shooting.description}</p>` : ''}
+                            </div>
+                        </div>
+                        <a href="/clients/${clientId}/shootings/${shooting.id}" class="btn btn-sm btn-primary">Voir</a>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        function displayClientPublications(publications, date) {
+            const container = document.getElementById('clientPublicationsList');
+            
+            if (publications.length === 0) {
+                container.innerHTML = '<p class="no-events">Aucune publication ce jour</p>';
+                return;
+            }
+            
+            container.innerHTML = publications.map(publication => {
+                let statusClass = 'status-pending';
+                let statusIcon = '⏳';
+                if (publication.is_completed) {
+                    statusClass = 'status-completed';
+                    statusIcon = '✅';
+                } else if (publication.status === 'cancelled') {
+                    statusClass = 'status-cancelled';
+                    statusIcon = '❌';
+                } else if (publication.is_overdue) {
+                    statusClass = 'status-overdue';
+                    statusIcon = '🚨';
+                } else if (publication.is_upcoming) {
+                    statusClass = 'status-upcoming';
+                    statusIcon = '⏰';
+                }
+                
+                return `
+                    <div class="event-item-client ${statusClass}">
+                        <div class="event-info">
+                            <span class="event-status-icon">${statusIcon}</span>
+                            <div class="event-details">
+                                <strong>${publication.content_idea_titre || 'Publication'}</strong>
+                                <span class="event-status-text">${publication.status_text}</span>
+                                ${publication.shooting_date ? `<p class="event-shooting-link">Tournage du ${publication.shooting_date}</p>` : '<p class="event-shooting-link">Aucun tournage lié</p>'}
+                                ${publication.description ? `<p class="event-description">${publication.description}</p>` : ''}
+                            </div>
+                        </div>
+                        <a href="/clients/${clientId}/publications/${publication.id}" class="btn btn-sm btn-primary">Voir</a>
+                    </div>
+                `;
+            }).join('');
+        }
     </script>
     
     <style>
@@ -2060,5 +2210,247 @@
                 width: 100%;
             }
         }
+        
+        /* Styles pour la modal des événements par date */
+        .client-date-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .client-date-modal-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(4px);
+        }
+        
+        .client-date-modal-content {
+            position: relative;
+            background: white;
+            border-radius: 20px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            animation: modalSlideIn 0.3s ease-out;
+        }
+        
+        @keyframes modalSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-20px) scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+        
+        .client-date-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1.5rem;
+            background: linear-gradient(135deg, #FF6A3A 0%, #e55a2a 100%);
+            color: white;
+        }
+        
+        .client-date-modal-header h3 {
+            margin: 0;
+            font-size: 1.25rem;
+            font-weight: 700;
+        }
+        
+        .client-date-modal-close {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            font-size: 1.5rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+        
+        .client-date-modal-close:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+        
+        .client-date-modal-body {
+            padding: 1.5rem;
+            max-height: calc(80vh - 80px);
+            overflow-y: auto;
+        }
+        
+        .modal-section-client {
+            margin-bottom: 1.5rem;
+        }
+        
+        .modal-section-client:last-child {
+            margin-bottom: 0;
+        }
+        
+        .modal-section-client h4 {
+            font-size: 1rem;
+            font-weight: 700;
+            color: #303030;
+            margin: 0 0 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid #f0f0f0;
+        }
+        
+        .event-item-client {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem;
+            background: #f8f9fa;
+            border-radius: 12px;
+            margin-bottom: 0.75rem;
+            border-left: 4px solid #6c757d;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .event-item-client:hover {
+            transform: translateX(4px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        
+        .event-item-client.status-completed {
+            border-left-color: #28a745;
+            background: #f0fff4;
+        }
+        
+        .event-item-client.status-overdue {
+            border-left-color: #dc3545;
+            background: #fff5f5;
+        }
+        
+        .event-item-client.status-upcoming {
+            border-left-color: #ffc107;
+            background: #fffbf0;
+        }
+        
+        .event-item-client.status-cancelled {
+            border-left-color: #6c757d;
+            background: #f5f5f5;
+        }
+        
+        .event-item-client .event-info {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+            flex: 1;
+        }
+        
+        .event-item-client .event-status-icon {
+            font-size: 1.5rem;
+            flex-shrink: 0;
+        }
+        
+        .event-item-client .event-details {
+            flex: 1;
+        }
+        
+        .event-item-client .event-details strong {
+            display: block;
+            font-size: 1rem;
+            color: #303030;
+            margin-bottom: 0.25rem;
+        }
+        
+        .event-item-client .event-status-text {
+            display: inline-block;
+            font-size: 0.75rem;
+            padding: 0.2rem 0.5rem;
+            border-radius: 20px;
+            background: #e9ecef;
+            color: #495057;
+            margin-bottom: 0.5rem;
+        }
+        
+        .event-item-client.status-completed .event-status-text {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .event-item-client.status-overdue .event-status-text {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .event-item-client.status-upcoming .event-status-text {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .event-item-client .event-content-ideas,
+        .event-item-client .event-shooting-link,
+        .event-item-client .event-description {
+            font-size: 0.85rem;
+            color: #6c757d;
+            margin: 0.25rem 0 0;
+        }
+        
+        .event-item-client .event-description {
+            font-style: italic;
+        }
+        
+        .no-events {
+            color: #6c757d;
+            font-style: italic;
+            text-align: center;
+            padding: 1rem;
+        }
+        
+        .modal-loading {
+            text-align: center;
+            padding: 2rem;
+            color: #6c757d;
+        }
     </style>
+    
+    <!-- Modal pour les événements d'une date -->
+    <div id="clientDateModal" class="client-date-modal">
+        <div class="client-date-modal-overlay" onclick="closeClientDateModal()"></div>
+        <div class="client-date-modal-content">
+            <div class="client-date-modal-header">
+                <h3>Événements du <span id="clientModalDateText"></span></h3>
+                <button class="client-date-modal-close" onclick="closeClientDateModal()">×</button>
+            </div>
+            <div class="client-date-modal-body">
+                <div id="clientModalLoading" class="modal-loading">
+                    <p>Chargement...</p>
+                </div>
+                <div id="clientModalContent" style="display: none;">
+                    <!-- Tournages -->
+                    <div class="modal-section-client">
+                        <h4>📹 Tournages</h4>
+                        <div id="clientShootingsList"></div>
+                    </div>
+                    
+                    <!-- Publications -->
+                    <div class="modal-section-client">
+                        <h4>📢 Publications</h4>
+                        <div id="clientPublicationsList"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 @endsection

@@ -93,7 +93,23 @@ Le système d'authentification utilise Laravel Breeze avec un modèle User perso
 - Yaya (Yalatif@2026)
 - Youba (Youbs@2026)
 
-#### 2. Clients (`role = 'client'`)
+#### 2. Team (`role = 'team'`)
+
+**Droits d'accès :**
+- Accès en **lecture seule** à toutes les fonctionnalités admin
+- Visualisation des clients, tournages, publications
+- Consultation du dashboard principal
+- **Pas de modification** des données (formulaires désactivés)
+- **Pas d'accès** au bouton Dashboard dans la liste des clients
+
+**Utilisateurs team créés :**
+- Sylla (sylla / YWNA@2026)
+- Koita (koita / Rhkoita@2026)
+- Kmex (team)
+- Ballo (team)
+- Youba (team)
+
+#### 3. Clients (`role = 'client'`)
 
 **Droits d'accès :**
 - Accès uniquement à leur propre espace client
@@ -767,6 +783,10 @@ GET  /planning-comparison          → PlanningComparisonController@index
 ```php
 GET  /clients/{client}/dashboard   → ClientController@dashboard (middleware: client.access)
 GET  /clients/{client}/generate-report → ClientController@generateReport (middleware: client.access)
+GET  /clients/{client}/reports/{report}/download → ClientController@downloadReport (middleware: client.access)
+GET  /clients/{client}/shootings/{shooting} → ClientController@showShooting (middleware: client.access)
+GET  /clients/{client}/publications/{publication} → ClientController@showPublication (middleware: client.access)
+GET  /clients/{client}/client-events → ClientController@getClientEvents (middleware: client.access)
 ```
 
 #### Authentification
@@ -967,8 +987,9 @@ Quatre cartes de statistiques affichant :
 - Navigation entre les mois (précédent/suivant)
 - Sélection de mois et année via listes déroulantes
 - Mise à jour AJAX sans rechargement de page
-- Clic sur une date pour voir les événements du jour
-- Clic sur un événement pour voir ses détails
+- **Statistiques synchronisées** : Les cartes de stats se mettent à jour automatiquement lors du changement de mois
+- **Modal interactive** : Clic sur une date ou un événement pour afficher une boîte de dialogue avec les détails
+- Affichage du **titre de l'idée de contenu** pour chaque tournage (au lieu de "X idée(s)")
 
 #### 3. Événements à venir
 
@@ -995,6 +1016,28 @@ Quatre cartes de statistiques affichant :
 - Génère un rapport Word détaillé pour le client
 - Contenu : statistiques, tournages, publications, règles
 - **Accessible uniquement pour le client concerné**
+
+#### 7. Vues détaillées (lecture seule)
+
+- **Page détail tournage** : Affiche toutes les informations d'un tournage avec :
+  - Statut coloré (complété, en retard, à venir, annulé)
+  - Date et heure
+  - Description
+  - Idées de contenu associées
+  - Bouton retour vers le dashboard
+
+- **Page détail publication** : Affiche toutes les informations d'une publication avec :
+  - Statut coloré
+  - Idée de contenu avec type
+  - Tournage lié (si applicable) avec lien cliquable
+  - Description
+  - Bouton retour vers le dashboard
+
+#### 8. Téléchargement des rapports
+
+- Les clients peuvent télécharger les rapports PDF générés par l'admin
+- Section "Rapports disponibles" dans le dashboard client
+- Bouton de téléchargement pour chaque rapport
 
 ### Interface utilisateur
 
@@ -1139,6 +1182,9 @@ Les fichiers PWA sont intégrés dans :
 - ✅ Icônes personnalisées
 - ✅ Affichage en mode standalone
 - ✅ Mise à jour automatique du cache
+- ✅ **Navigation dans un seul onglet** : Tous les liens s'ouvrent dans le même onglet (pas de nouvel onglet)
+- ✅ Script global interceptant les clics pour forcer la navigation interne
+- ✅ Manifest avec `handle_links: preferred` pour garder les liens dans l'app
 
 ### Documentation complémentaire
 
@@ -1310,6 +1356,47 @@ Pour toute question ou problème, consulter :
 
 ---
 
-**Dernière mise à jour :** Lundi 12 janvier 2026 à 11h42  
-**Version :** 1.0  
+**Dernière mise à jour :** Mercredi 4 février 2026  
+**Version :** 1.1  
 **Développé pour :** Gda Com
+
+---
+
+## Changelog v1.1 (Mercredi 4 février 2026)
+
+### Nouvelles fonctionnalités
+
+1. **Rôle Team (lecture seule)**
+   - Nouveau type d'utilisateur avec accès en lecture seule
+   - Visualisation complète sans possibilité de modification
+   - Bouton "Dashboard" retiré de la liste des clients pour les team
+
+2. **Espace Client amélioré**
+   - Vues détaillées pour tournages et publications (lecture seule)
+   - Modal interactive pour afficher les événements d'une date
+   - Statistiques synchronisées avec le mois du calendrier
+   - Téléchargement des rapports par les clients
+   - Affichage du titre de l'idée de contenu dans le calendrier
+
+3. **Emails programmés**
+   - Configuration des destinataires pour les emails automatiques
+   - Emails Direction : yhdiallo@gdamali.net, ysacko@gdamali.net
+   - Emails Finance/RH configurés dans le dashboard
+
+4. **Calendrier admin amélioré**
+   - Affichage du titre de l'idée de contenu pour les tournages
+   - Au lieu de "X idée(s)", affiche le nom réel (ex: "Spot", "Vidéo Slide")
+
+5. **Navigation PWA optimisée**
+   - Tous les liens s'ouvrent dans le même onglet
+   - Suppression des `target="_blank"`
+   - Script global pour intercepter les navigations
+   - Manifest mis à jour avec `handle_links: preferred`
+
+6. **Taille des fichiers**
+   - Augmentation de la limite d'upload des rapports à 50 Mo
+
+### Corrections
+- Correction du formulaire d'édition des tournages (autocomplete browser)
+- Suppression du box "Période sélectionnée" dans les détails client
+- Retrait du bouton "Dashboard" de la liste admin des clients

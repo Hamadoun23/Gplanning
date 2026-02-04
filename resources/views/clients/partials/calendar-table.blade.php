@@ -54,10 +54,11 @@
                                      data-event-type="shooting"
                                      onclick="event.stopPropagation(); openClientDateModal('{{ $day['date']->format('Y-m-d') }}'); return false;"
                                      style="background-color: {{ $bgColor }}; color: white; padding: 0.25rem 0.5rem; margin-bottom: 0.25rem; border-radius: 3px; font-size: 0.7rem; cursor: pointer; border-left: 3px solid {{ $borderColor }};" 
-                                     title="Tournage - {{ $shooting->date->format('d/m/Y H:i') }} - {{ $shooting->status === 'completed' ? 'Complété' : ($shooting->isOverdue() ? 'En retard' : ($shooting->isUpcoming() ? 'Approche' : 'En attente')) }}">
+                                     title="Tournage - {{ $shooting->date->format('d/m/Y H:i') }} - {{ $shooting->contentIdeas->first()?->titre ?? 'Aucune idée' }} - {{ $shooting->status === 'completed' ? 'Complété' : ($shooting->isOverdue() ? 'En retard' : ($shooting->isUpcoming() ? 'Approche' : 'En attente')) }}">
                                     <strong>{{ $icon }} Tournage</strong>
                                     @if($shooting->contentIdeas->count() > 0)
-                                        <br><small>{{ $shooting->contentIdeas->count() }} idée(s)</small>
+                                        @php $contentIdea = $shooting->contentIdeas->first(); @endphp
+                                        <br><small>{{ mb_strlen($contentIdea->titre) > 15 ? mb_substr($contentIdea->titre, 0, 15) . '...' : $contentIdea->titre }}</small>
                                     @endif
                                 </div>
                             @endforeach

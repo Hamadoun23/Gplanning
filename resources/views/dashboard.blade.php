@@ -24,10 +24,12 @@
         <div class="dashboard-actions">
             <div class="report-card" data-gsap="fadeInUp">
                 @php
-                    // Adresses mails Finance & RH
+                    // Adresses mails Finance, RH & Direction
                     $financeEmail = 'thsylla@gdamali.net';
                     $rhEmail = 'askoita@gdamali.net';
-                    $allRecipients = $financeEmail . ',' . $rhEmail;
+                    $directionEmail1 = 'yhdiallo@gdamali.net';
+                    $directionEmail2 = 'ysacko@gdamali.net';
+                    $allRecipients = $financeEmail . ',' . $rhEmail . ',' . $directionEmail1 . ',' . $directionEmail2;
 
                     // Mois / année courants affichés
                     $months = ['', 'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
@@ -45,7 +47,7 @@
                         $lines[] = 'Aucun tournage planifié pour ce mois.';
                     }
 
-                    $mailBodyText = "Bonjour équipe Finance & RH,\n\nNous aurons besoin de votre présence / préparation pour les tournages prévus durant la période de " . $months[$month] . " " . $year . ".\n\nListe des tournages prévus :\n" . implode("\n", $lines) . "\n\nMerci d'anticiper les besoins (budgets, contrats, ressources humaines, déplacements, etc.).\n\nBien à vous,";
+                    $mailBodyText = "Bonjour La Direction, Finance & RH,\n\nNous aurons besoin de votre présence / préparation pour les tournages prévus durant la période de " . $months[$month] . " " . $year . ".\n\nListe des tournages prévus :\n" . implode("\n", $lines) . "\n\nMerci d'anticiper les besoins (budgets, ressources humaines, déplacements, etc.).\n\nBien à vous,";
                     $mailBody = rawurlencode($mailBodyText);
                     $mailtoLinkFinanceRh = 'mailto:' . $allRecipients . '?subject=' . rawurlencode($mailSubject) . '&body=' . $mailBody;
                 @endphp

@@ -244,6 +244,20 @@
     <div class="container">
         @yield('content')
     </div>
+    <script>
+        // Forcer tous les liens à s'ouvrir dans le même onglet (important pour PWA)
+        document.addEventListener('click', function(e) {
+            const link = e.target.closest('a');
+            if (link && link.href) {
+                // Ignorer les liens avec des protocoles spéciaux (mailto, tel, etc.)
+                const url = new URL(link.href, window.location.origin);
+                if (url.origin === window.location.origin) {
+                    // Forcer l'ouverture dans le même onglet pour les liens internes
+                    link.removeAttribute('target');
+                }
+            }
+        }, true);
+    </script>
     <script src="{{ asset('js/pwa.js') }}"></script>
 </body>
 </html>
