@@ -585,13 +585,13 @@
         }
         
         function filterByClient(clientId) {
-            const cells = document.querySelectorAll('[data-client-id]');
-            cells.forEach(cell => {
-                const cellClientIds = cell.getAttribute('data-client-id').split(',');
-                if (!clientId || clientId === 'all' || cellClientIds.includes(clientId)) {
-                    cell.style.display = '';
+            // Filtrer les publications individuelles (pas les cellules de jour)
+            const events = document.querySelectorAll('.calendar-event[data-client-id]');
+            events.forEach(event => {
+                if (!clientId || clientId === 'all' || event.getAttribute('data-client-id') === clientId) {
+                    event.style.display = '';
                 } else {
-                    cell.style.display = 'none';
+                    event.style.display = 'none';
                 }
             });
         }

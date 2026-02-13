@@ -82,6 +82,7 @@
                                 <div class="calendar-event" 
                                      data-event-type="publication"
                                      data-event-id="{{ $publication->id }}"
+                                     data-client-id="{{ $publication->client_id }}"
                                      style="background-color: {{ $bgColor }}; color: {{ $textColor }}; padding: 0.25rem 0.5rem; margin-bottom: 0.25rem; border-radius: 3px; font-size: 0.7rem; cursor: pointer; border-left: 3px solid {{ $borderColor }};" 
                                      onclick="event.stopPropagation(); window.location.href='{{ route('publications.show', $publication) }}'"
                                      title="Publication - {{ $publication->client ? $publication->client->nom_entreprise : 'N/A' }} - {{ $publication->date->format('d/m/Y H:i') }} - {{ $publication->contentIdea ? $publication->contentIdea->titre : 'N/A' }} - {{ $publication->status === 'completed' ? 'Complétée' : ($publication->isOverdue() ? 'En retard' : ($publication->isUpcoming() ? 'Approche' : 'En attente')) }}">

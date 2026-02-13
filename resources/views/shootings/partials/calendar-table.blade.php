@@ -82,6 +82,7 @@
                                 <div class="calendar-event" 
                                      data-event-type="shooting"
                                      data-event-id="{{ $shooting->id }}"
+                                     data-client-id="{{ $shooting->client_id }}"
                                      style="background-color: {{ $bgColor }}; color: {{ $textColor }}; padding: 0.25rem 0.5rem; margin-bottom: 0.25rem; border-radius: 3px; font-size: 0.7rem; cursor: pointer; border-left: 3px solid {{ $borderColor }};" 
                                      onclick="event.stopPropagation(); window.location.href='{{ route('shootings.show', $shooting) }}'"
                                      title="Tournage - {{ $shooting->client ? $shooting->client->nom_entreprise : 'N/A' }} - {{ $shooting->date->format('d/m/Y H:i') }} - {{ $shooting->status === 'completed' ? 'Complété' : ($shooting->isOverdue() ? 'En retard' : ($shooting->isUpcoming() ? 'Approche' : 'En attente')) }}">

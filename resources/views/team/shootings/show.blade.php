@@ -849,7 +849,7 @@
                     <div id="rescheduleDateContainer" style="display: none;">
                         <div class="shooting-modal-form-group">
                             <label for="reschedule_date">Nouvelle date et heure *</label>
-                            <input type="datetime-local" id="reschedule_date" name="reschedule_date" required min="{{ now()->format('Y-m-d\TH:i') }}">
+                            <input type="datetime-local" id="reschedule_date" name="reschedule_date" min="{{ now()->format('Y-m-d\TH:i') }}">
                         </div>
                     </div>
                     <div class="shooting-modal-actions">
@@ -886,11 +886,19 @@
                 form.action = '{{ route("shootings.toggle-status", $shooting) }}';
                 document.getElementById('status_reason').value = '';
                 
+                // Réinitialiser le bouton submit au cas où il a été désactivé
+                const submitBtn = form.querySelector('button[type="submit"]');
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.classList.remove('loading');
+                    submitBtn.innerHTML = 'Confirmer';
+                }
+                
                 const dateContainer = document.getElementById('rescheduleDateContainer');
                 const dateInput = document.getElementById('reschedule_date');
                 if (status === 'rescheduled') {
                     dateContainer.style.display = 'block';
-                    dateInput.required = true;
+                    dateInput.setAttribute('required', 'required');
                     const defaultDate = new Date();
                     defaultDate.setDate(defaultDate.getDate() + 7);
                     // Format datetime-local: YYYY-MM-DDTHH:mm
@@ -910,7 +918,7 @@
                     }
                 } else {
                     dateContainer.style.display = 'none';
-                    dateInput.required = false;
+                    dateInput.removeAttribute('required');
                     dateInput.value = '';
                 }
                 
