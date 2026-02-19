@@ -138,6 +138,37 @@
             </div>
             @include('clients.partials.calendar-table')
         </div>
+
+        <!-- Légende du calendrier -->
+        <div class="calendar-legend">
+            <h4>Légende :</h4>
+            <div class="legend-items">
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #FF6A3A; border-left: 3px solid #e55a2a;"></div>
+                    <span>📹 Tournage</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #28a745; border-left: 3px solid #1e7e34;"></div>
+                    <span>📢 Publication</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #ffc107; border-left: 3px solid #ff9800;"></div>
+                    <span>⏰ Approche (dans 3 jours)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #dc3545; border-left: 3px solid #c82333;"></div>
+                    <span>🚨 En retard</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #28a745; border-left: 3px solid #1e7e34;"></div>
+                    <span>✅ Complété</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #6c757d; border-left: 3px solid #5a6268;"></div>
+                    <span>❌ Échec/Annulé</span>
+                </div>
+            </div>
+        </div>
     </div>
     
     <!-- Événements à venir et récents -->
@@ -1469,6 +1500,38 @@
                 justify-content: flex-end;
                 margin-top: 1rem;
             }
+        }
+
+        .calendar-legend {
+            margin-top: 1rem;
+            padding: 1rem;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+        }
+
+        .calendar-legend h4 {
+            margin-bottom: 0.5rem;
+            font-size: 1rem;
+        }
+
+        .legend-items {
+            display: flex;
+            gap: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 3px;
+            flex-shrink: 0;
         }
     </style>
     

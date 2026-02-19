@@ -166,19 +166,22 @@
             display: inline-flex;
             align-items: center;
             gap: 0.5rem;
-            background: white;
-            color: #303030;
+            background: #dc3545;
+            color: white;
             padding: 0.75rem 1.5rem;
             border-radius: 12px;
             text-decoration: none;
             font-weight: 600;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 10px rgba(220, 53, 69, 0.3);
             transition: all 0.3s ease;
+            margin-bottom: 1.5rem;
         }
         
         .back-btn:hover {
+            background: #c82333;
             transform: translateY(-2px);
-            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+            box-shadow: 0 4px 15px rgba(220, 53, 69, 0.4);
+            color: white;
         }
         
         .alert-box {
@@ -223,6 +226,11 @@
     </style>
     
     <div class="shooting-detail-page">
+        <!-- Bouton retour -->
+        <a href="{{ route('clients.dashboard', $client) }}" class="back-btn">
+            ← Retour au tableau de bord
+        </a>
+        
         <!-- Alertes de statut -->
         @if($shooting->isOverdue())
             <div class="alert-box alert-danger">
@@ -324,9 +332,5 @@
             @endif
         </div>
         
-        <!-- Bouton retour -->
-        <a href="{{ route('clients.dashboard', $client) }}" class="back-btn">
-            ← Retour au tableau de bord
-        </a>
     </div>
 @endsection
