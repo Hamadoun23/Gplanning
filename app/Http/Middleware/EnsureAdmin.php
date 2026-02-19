@@ -9,16 +9,18 @@ use Symfony\Component\HttpFoundation\Response;
 
 class EnsureAdmin
 {
-    /**
-     * Handle an incoming request.
-     * Vérifie que l'utilisateur est un administrateur
-     *
-     * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
-     */
     public function handle(Request $request, Closure $next): Response
     {
-        if (!Auth::check() || !Auth::user()->isAdmin()) {
-            abort(403, 'Accès réservé aux administrateurs');
+        if (!Auth::check()) {
+            return redirect()->route('login');
+        }
+
+        if (!Auth::user()->isAdmin()) {
+            Auth::guard('web')->logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            return redirect()->route('login');
         }
         
         return $next($request);

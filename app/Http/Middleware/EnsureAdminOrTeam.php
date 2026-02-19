@@ -9,16 +9,20 @@ use Symfony\Component\HttpFoundation\Response;
 
 class EnsureAdminOrTeam
 {
-    /**
-     * Handle an incoming request.
-     * Vérifie que l'utilisateur est un admin ou un membre d'equipe
-     *
-     * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
-     */
     public function handle(Request $request, Closure $next): Response
     {
-        if (!Auth::check() || !(Auth::user()->isAdmin() || Auth::user()->isTeam())) {
-            abort(403, 'Accès réservé aux administrateurs et membres team');
+        if (!Auth::check()) {
+            return redirect()->route('login');
+        }
+
+        $user = Auth::user();
+
+        if (!($user->isAdmin() || $user->isTeam())) {
+            Auth::guard('web')->logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            return redirect()->route('login');
         }
 
         return $next($request);

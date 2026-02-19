@@ -30,7 +30,7 @@
                 @endif
             </form>
             
-            <form action="{{ route('shootings.store') }}" method="POST" id="shooting-form" class="publication-form-modern">
+            <form action="{{ route('shootings.store') }}" method="POST" id="shooting-form" class="publication-form-modern" autocomplete="one-time-code">
                 @csrf
                 
                 <!-- Client Selection -->
@@ -47,7 +47,7 @@
                         <span class="label-text">Client <span class="required-star">*</span></span>
                     </label>
                     <div class="select-wrapper-modern">
-                        <select id="client_id" name="client_id" required class="select-modern" onchange="document.getElementById('hidden_client_id').value=this.value; document.getElementById('client-form').submit();">
+                        <select id="client_id" name="client_id" required class="select-modern" autocomplete="one-time-code" onchange="document.getElementById('hidden_client_id').value=this.value; document.getElementById('client-form').submit();">
                             <option value="">Sélectionner un client</option>
                             @foreach($clients as $c)
                                 <option value="{{ $c->id }}" {{ old('client_id', $selectedClient) == $c->id ? 'selected' : '' }}>{{ $c->nom_entreprise }}</option>
@@ -75,7 +75,7 @@
                         <span class="label-text">Date et heure <span class="required-star">*</span></span>
                     </label>
                     <div class="input-wrapper-modern">
-                        <input type="datetime-local" id="date" name="date" value="{{ old('date', $selectedDate ? \Carbon\Carbon::parse($selectedDate)->format('Y-m-d\TH:i') : '') }}" required class="input-modern" data-realtime-check data-check-type="shooting">
+                        <input type="datetime-local" id="date" name="date" value="{{ old('date', $selectedDate ? \Carbon\Carbon::parse($selectedDate)->format('Y-m-d\TH:i') : '') }}" required class="input-modern" autocomplete="one-time-code" data-realtime-check data-check-type="shooting">
                         <div class="input-focus-line"></div>
                     </div>
                     <div id="date-warnings" class="warnings-container"></div>
@@ -96,7 +96,7 @@
                         <span class="label-text">Description</span>
                     </label>
                     <div class="textarea-wrapper-modern">
-                        <textarea id="description" name="description" rows="5" class="textarea-modern" placeholder="Décrivez le tournage (optionnel)...">{{ old('description') }}</textarea>
+                        <textarea id="description" name="description" rows="5" class="textarea-modern" autocomplete="one-time-code" placeholder="Décrivez le tournage (optionnel)...">{{ old('description') }}</textarea>
                         <div class="textarea-focus-line"></div>
                     </div>
                     <div class="char-counter">
@@ -116,7 +116,7 @@
                         <span class="label-text">Idée de contenu <span class="required-star">*</span></span>
                     </label>
                     <div class="select-wrapper-modern">
-                        <select id="content_idea_id" name="content_idea_id" required class="select-modern">
+                        <select id="content_idea_id" name="content_idea_id" required class="select-modern" autocomplete="one-time-code">
                             <option value="">Sélectionner une idée</option>
                             @if($contentIdeas->count() > 0)
                                 @foreach($contentIdeas as $idea)
@@ -512,6 +512,22 @@
             const descriptionTextarea = document.getElementById('description');
             const charCount = document.getElementById('char-count');
             const submitBtn = document.getElementById('submit-btn');
+            
+            const serverClientId = '{{ old('client_id', $selectedClient ?? '') }}';
+            const serverDate = '{{ old('date', $selectedDate ? \Carbon\Carbon::parse($selectedDate)->format('Y-m-d\TH:i') : '') }}';
+            const serverDescription = @json(old('description', ''));
+            const serverContentIdeaId = '{{ old('content_idea_id', '') }}';
+            
+            function forceServerValues() {
+                if (clientSelect.value !== serverClientId) clientSelect.value = serverClientId;
+                if (dateInput.value !== serverDate) dateInput.value = serverDate;
+                if (descriptionTextarea.value !== serverDescription) descriptionTextarea.value = serverDescription;
+                const contentIdeaSelect = document.getElementById('content_idea_id');
+                if (contentIdeaSelect && contentIdeaSelect.value !== serverContentIdeaId) contentIdeaSelect.value = serverContentIdeaId;
+            }
+            forceServerValues();
+            setTimeout(forceServerValues, 50);
+            setTimeout(forceServerValues, 200);
             
             // Character counter for description
             if (descriptionTextarea && charCount) {

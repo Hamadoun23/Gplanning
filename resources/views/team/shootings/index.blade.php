@@ -141,6 +141,28 @@
             </div>
         </div>
     </div>
+
+    <!-- Modal pour gérer les événements d'une date -->
+    <div id="dateModal" class="date-modal" style="display: none;">
+        <div class="date-modal-overlay" onclick="closeDateModal()"></div>
+        <div class="date-modal-content">
+            <div class="date-modal-header">
+                <h3 id="modalDateTitle">Événements du <span id="modalDateText"></span></h3>
+                <button class="date-modal-close" onclick="closeDateModal()">×</button>
+            </div>
+            <div class="date-modal-body">
+                <div id="modalLoading" class="modal-loading" style="text-align: center; padding: 2rem;">
+                    <p>Chargement...</p>
+                </div>
+                <div id="modalContent" style="display: none;">
+                    <div class="modal-section">
+                        <h4>📹 Tournages</h4>
+                        <div id="shootingsList" class="events-list"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
     
     <style>
         .calendar-select-wrapper {
@@ -400,6 +422,35 @@
                 width: 100%;
             }
         }
+
+        .date-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 10000; display: flex; align-items: center; justify-content: center; }
+        .date-modal-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); backdrop-filter: blur(2px); z-index: 10000; }
+        .date-modal-content { position: relative; background: white; border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); max-width: 800px; width: 90%; max-height: 90vh; display: flex; flex-direction: column; z-index: 10001; animation: modalSlideIn 0.3s ease-out; }
+        @keyframes modalSlideIn { from { opacity: 0; transform: translateY(-20px) scale(0.95); } to { opacity: 1; transform: translateY(0) scale(1); } }
+        .date-modal-header { display: flex; justify-content: space-between; align-items: center; padding: 1.5rem; border-bottom: 2px solid #f0f0f0; }
+        .date-modal-header h3 { margin: 0; color: #303030; font-size: 1.5rem; }
+        .date-modal-close { background: none; border: none; font-size: 2rem; cursor: pointer; color: #999; border-radius: 50%; transition: all 0.2s; }
+        .date-modal-close:hover { background: #f0f0f0; color: #303030; }
+        .date-modal-body { padding: 1.5rem; overflow-y: auto; flex: 1; }
+        .modal-section h4 { margin: 0 0 1rem 0; color: #303030; font-size: 1.25rem; padding-bottom: 0.5rem; border-bottom: 2px solid #f0f0f0; }
+        .events-list { display: flex; flex-direction: column; gap: 0.75rem; }
+        .event-item { background: #f8f9fa; border: 1px solid #e0e0e0; border-radius: 8px; padding: 1rem; display: flex; justify-content: space-between; align-items: center; transition: all 0.2s; }
+        .event-item:hover { background: #f0f0f0; }
+        .event-item-info { flex: 1; }
+        .event-item-title { font-weight: 600; color: #303030; margin-bottom: 0.25rem; }
+        .event-item-details { font-size: 0.875rem; color: #666; }
+        .event-item-actions { display: flex; gap: 0.5rem; }
+        .event-item-actions .btn { padding: 0.375rem 0.75rem; font-size: 0.85rem; white-space: nowrap; }
+        .event-status-badge { display: inline-block; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: 600; margin-left: 0.5rem; }
+        .status-pending { background: #fff3cd; color: #856404; }
+        .status-completed { background: #d4edda; color: #155724; }
+        .status-cancelled { background: #f8d7da; color: #721c24; }
+        .status-info { background: #d1ecf1; color: #0c5460; }
+        .status-overdue { background: #f8d7da; color: #721c24; }
+        .status-upcoming { background: #fff3cd; color: #856404; }
+        .empty-events { text-align: center; padding: 2rem; color: #999; font-style: italic; }
+        .calendar-day-add-btn { opacity: 0; transition: opacity 0.2s; }
+        .calendar-day-cell:hover .calendar-day-add-btn { opacity: 1; }
     </style>
     
     <script>
@@ -523,6 +574,8 @@
                         yearSelect.setAttribute('data-initial-year', finalYear.toString());
                     }
                     
+                    initCalendarCellEvents();
+
                     // Réappliquer le filtre client si actif
                     const clientFilter = document.getElementById('client_filter');
                     if (clientFilter && clientFilter.value !== 'all') {
@@ -686,9 +739,47 @@
             });
         }
         
+        function openDateModal(date) {
+            const modal = document.getElementById('dateModal');
+            const modalDateText = document.getElementById('modalDateText');
+            const modalLoading = document.getElementById('modalLoading');
+            const modalContent = document.getElementById('modalContent');
+            const dateObj = new Date(date + 'T00:00:00');
+            modalDateText.textContent = dateObj.toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+            modal.style.display = 'flex';
+            modalLoading.style.display = 'block';
+            modalContent.style.display = 'none';
+            fetch(`/api/events-by-date?date=${date}`, { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' } })
+                .then(r => r.json())
+                .then(data => { modalLoading.style.display = 'none'; modalContent.style.display = 'block'; displayShootings(data.shootings); })
+                .catch(() => { modalLoading.innerHTML = '<p style="color: #dc3545;">Erreur lors du chargement</p>'; });
+        }
+        function closeDateModal() { document.getElementById('dateModal').style.display = 'none'; }
+        function displayShootings(shootings) {
+            const container = document.getElementById('shootingsList');
+            if (shootings.length === 0) { container.innerHTML = '<div class="empty-events">Aucun tournage prévu</div>'; return; }
+            container.innerHTML = shootings.map(s => {
+                let sc = 'status-pending', st = 'En attente';
+                if (s.status === 'completed') { sc = 'status-completed'; st = 'Complété'; }
+                else if (s.status === 'cancelled') { sc = 'status-cancelled'; st = 'Annulé'; }
+                else if (s.is_overdue) { sc = 'status-overdue'; st = 'En retard'; }
+                else if (s.is_upcoming) { sc = 'status-upcoming'; st = 'À venir'; }
+                const ideas = s.content_ideas && s.content_ideas.length > 0 ? s.content_ideas.map(ci => ci.titre || ci).join(', ') : 'Aucune idée';
+                return `<div class="event-item"><div class="event-item-info"><div class="event-item-title">📹 ${s.client_name} <span class="event-status-badge ${sc}">${st}</span></div><div class="event-item-details">${ideas}</div></div><div class="event-item-actions"><a href="${s.url}" class="btn btn-primary">Voir</a></div></div>`;
+            }).join('');
+        }
+        function initCalendarCellEvents() {
+            document.querySelectorAll('.calendar-day-cell').forEach(cell => {
+                const n = cell.cloneNode(true); cell.parentNode.replaceChild(n, cell);
+                n.addEventListener('click', function(e) { if (e.target.closest('.calendar-event') || e.target.closest('.calendar-day-add-btn')) return; const d = this.getAttribute('data-date'); if (d) openDateModal(d); });
+            });
+        }
+        document.addEventListener('keydown', function(e) { if (e.key === 'Escape') closeDateModal(); });
+
         document.addEventListener('DOMContentLoaded', function() {
             initClientCombobox();
             syncInitialValues();
+            initCalendarCellEvents();
             
             const monthSelect = document.getElementById('month');
             const yearSelect = document.getElementById('year');

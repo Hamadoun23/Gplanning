@@ -20,7 +20,7 @@
         
         <!-- Main Form Card -->
         <div class="form-card-modern" data-gsap="fadeInUp">
-            <form action="{{ route('shootings.update', $shooting) }}" method="POST" id="shooting-form" class="publication-form-modern" autocomplete="off">
+            <form action="{{ route('shootings.update', $shooting) }}" method="POST" id="shooting-form" class="publication-form-modern" autocomplete="one-time-code">
                 @csrf
                 @method('PUT')
                 
@@ -45,7 +45,7 @@
                         <span class="label-text">Client <span class="required-star">*</span></span>
                     </label>
                     <div class="select-wrapper-modern">
-                        <select id="client_id" name="client_id" required class="select-modern" autocomplete="off">
+                        <select id="client_id" name="client_id" required class="select-modern" autocomplete="one-time-code">
                             <option value="">Sélectionner un client</option>
                             @foreach($clients as $c)
                                 <option value="{{ $c->id }}" {{ (int)$shooting->client_id === (int)$c->id ? 'selected' : '' }}>{{ $c->nom_entreprise }}</option>
@@ -73,7 +73,7 @@
                         <span class="label-text">Date et heure <span class="required-star">*</span></span>
                     </label>
                     <div class="input-wrapper-modern">
-                        <input type="datetime-local" id="date" name="date" value="{{ $shooting->date ? $shooting->date->format('Y-m-d\TH:i') : '' }}" required class="input-modern" autocomplete="off" data-realtime-check data-check-type="shooting" data-exclude-id="{{ $shooting->id }}">
+                        <input type="datetime-local" id="date" name="date" value="{{ $shooting->date ? $shooting->date->format('Y-m-d\TH:i') : '' }}" required class="input-modern" autocomplete="one-time-code" data-realtime-check data-check-type="shooting" data-exclude-id="{{ $shooting->id }}">
                         <div class="input-focus-line"></div>
                     </div>
                     <div id="date-warnings" class="warnings-container"></div>
@@ -94,7 +94,7 @@
                         <span class="label-text">Description</span>
                     </label>
                     <div class="textarea-wrapper-modern">
-                        <textarea id="description" name="description" rows="5" class="textarea-modern" placeholder="Décrivez le tournage (optionnel)..." autocomplete="off">{{ $shooting->description ?? '' }}</textarea>
+                        <textarea id="description" name="description" rows="5" class="textarea-modern" placeholder="Décrivez le tournage (optionnel)..." autocomplete="one-time-code">{{ $shooting->description ?? '' }}</textarea>
                         <div class="textarea-focus-line"></div>
                     </div>
                     <div class="char-counter">
@@ -114,7 +114,7 @@
                         <span class="label-text">Idée de contenu <span class="required-star">*</span></span>
                     </label>
                     <div class="select-wrapper-modern">
-                        <select id="content_idea_id" name="content_idea_id" required class="select-modern" autocomplete="off">
+                        <select id="content_idea_id" name="content_idea_id" required class="select-modern" autocomplete="one-time-code">
                             <option value="">Sélectionner une idée</option>
                             @if($contentIdeas->count() > 0)
                                 @foreach($contentIdeas as $idea)
@@ -511,22 +511,17 @@
             const correctDescription = @json($shooting->description ?? '');
             const correctContentIdeaId = '{{ $shooting->contentIdeas->first()?->id ?? "" }}';
             
-            // Forcer les valeurs après un court délai pour s'assurer que l'autocomplete est terminé
-            setTimeout(function() {
-                if (clientSelect.value !== correctClientId) {
-                    clientSelect.value = correctClientId;
-                }
-                if (dateInput.value !== correctDate) {
-                    dateInput.value = correctDate;
-                }
-                if (descriptionTextarea.value !== correctDescription) {
-                    descriptionTextarea.value = correctDescription;
-                }
+            function forceCorrectValues() {
+                if (clientSelect.value !== correctClientId) clientSelect.value = correctClientId;
+                if (dateInput.value !== correctDate) dateInput.value = correctDate;
+                if (descriptionTextarea.value !== correctDescription) descriptionTextarea.value = correctDescription;
                 const contentIdeaSelect = document.getElementById('content_idea_id');
-                if (contentIdeaSelect && contentIdeaSelect.value !== correctContentIdeaId) {
-                    contentIdeaSelect.value = correctContentIdeaId;
-                }
-            }, 50);
+                if (contentIdeaSelect && contentIdeaSelect.value !== correctContentIdeaId) contentIdeaSelect.value = correctContentIdeaId;
+            }
+            forceCorrectValues();
+            setTimeout(forceCorrectValues, 50);
+            setTimeout(forceCorrectValues, 200);
+            setTimeout(forceCorrectValues, 500);
             
             // Character counter for description
             if (descriptionTextarea && charCount) {

@@ -10,17 +10,23 @@ use Symfony\Component\HttpFoundation\Response;
 
 class RedirectIfAuthenticated
 {
-    /**
-     * Handle an incoming request.
-     *
-     * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
-     */
     public function handle(Request $request, Closure $next, string ...$guards): Response
     {
         $guards = empty($guards) ? [null] : $guards;
 
         foreach ($guards as $guard) {
             if (Auth::guard($guard)->check()) {
+                $user = Auth::guard($guard)->user();
+
+                // Les clients sont déconnectés et restent sur le login
+                if ($user->isClient()) {
+                    Auth::guard($guard)->logout();
+                    $request->session()->invalidate();
+                    $request->session()->regenerateToken();
+
+                    return $next($request);
+                }
+
                 return redirect(RouteServiceProvider::HOME);
             }
         }

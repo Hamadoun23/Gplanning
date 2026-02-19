@@ -9,15 +9,17 @@ use Symfony\Component\HttpFoundation\Response;
 
 class EnsureTeamReadOnly
 {
-    /**
-     * Handle an incoming request.
-     * Bloque toute modification pour les comptes team (lecture seule)
-     *
-     * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
-     */
     public function handle(Request $request, Closure $next): Response
     {
         $user = Auth::user();
+
+        if ($user && $user->isClient()) {
+            Auth::guard('web')->logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            return redirect()->route('login');
+        }
 
         if ($user && $user->isTeam()) {
             $method = strtoupper($request->method());

@@ -41,7 +41,7 @@
         
         <!-- Main Form Card -->
         <div class="form-card-modern" data-gsap="fadeInUp">
-            <form action="{{ route('publications.update', $publication) }}" method="POST" id="publication-form" class="publication-form-modern">
+            <form action="{{ route('publications.update', $publication) }}" method="POST" id="publication-form" class="publication-form-modern" autocomplete="one-time-code">
                 @csrf
                 @method('PUT')
                 
@@ -66,7 +66,7 @@
                         <span class="label-text">Client <span class="required-star">*</span></span>
                     </label>
                     <div class="select-wrapper-modern">
-                        <select id="client_id" name="client_id" required class="select-modern">
+                        <select id="client_id" name="client_id" required class="select-modern" autocomplete="one-time-code">
                             <option value="">Sélectionner un client</option>
                             @foreach($clients as $c)
                                 <option value="{{ $c->id }}" {{ $publication->client_id == $c->id ? 'selected' : '' }}>{{ $c->nom_entreprise }}</option>
@@ -94,7 +94,7 @@
                         <span class="label-text">Date et heure <span class="required-star">*</span></span>
                     </label>
                     <div class="input-wrapper-modern">
-                        <input type="datetime-local" id="date" name="date" value="{{ $publication->date ? $publication->date->format('Y-m-d\TH:i') : '' }}" required class="input-modern" data-realtime-check data-check-type="publication" data-exclude-id="{{ $publication->id }}">
+                        <input type="datetime-local" id="date" name="date" value="{{ $publication->date ? $publication->date->format('Y-m-d\TH:i') : '' }}" required class="input-modern" autocomplete="one-time-code" data-realtime-check data-check-type="publication" data-exclude-id="{{ $publication->id }}">
                         <div class="input-focus-line"></div>
                     </div>
                     <div id="date-warnings" class="warnings-container"></div>
@@ -115,7 +115,7 @@
                         <span class="label-text">Description</span>
                     </label>
                     <div class="textarea-wrapper-modern">
-                        <textarea id="description" name="description" rows="5" class="textarea-modern" placeholder="Décrivez la publication (optionnel)...">{{ $publication->description ?? '' }}</textarea>
+                        <textarea id="description" name="description" rows="5" class="textarea-modern" autocomplete="one-time-code" placeholder="Décrivez la publication (optionnel)...">{{ $publication->description ?? '' }}</textarea>
                         <div class="textarea-focus-line"></div>
                     </div>
                     <div class="char-counter">
@@ -135,7 +135,7 @@
                         <span class="label-text">Idée de contenu <span class="required-star">*</span></span>
                     </label>
                     <div class="select-wrapper-modern">
-                        <select id="content_idea_id" name="content_idea_id" required class="select-modern">
+                        <select id="content_idea_id" name="content_idea_id" required class="select-modern" autocomplete="one-time-code">
                             <option value="">Sélectionner une idée</option>
                             @foreach($contentIdeas as $idea)
                                 <option value="{{ $idea->id }}" {{ $publication->content_idea_id == $idea->id ? 'selected' : '' }}>{{ $idea->titre }} ({{ $idea->type }})</option>
@@ -600,6 +600,24 @@
             const charCount = document.getElementById('char-count');
             const submitBtn = document.getElementById('submit-btn');
             const excludeId = dateInput.getAttribute('data-exclude-id');
+            
+            // Forcer les valeurs correctes depuis la DB pour contrer l'autocomplete du navigateur
+            const correctClientId = '{{ $publication->client_id }}';
+            const correctDate = '{{ $publication->date ? $publication->date->format("Y-m-d\TH:i") : "" }}';
+            const correctDescription = @json($publication->description ?? '');
+            const correctContentIdeaId = '{{ $publication->content_idea_id ?? "" }}';
+            
+            function forceCorrectValues() {
+                if (clientSelect.value !== correctClientId) clientSelect.value = correctClientId;
+                if (dateInput.value !== correctDate) dateInput.value = correctDate;
+                if (descriptionTextarea.value !== correctDescription) descriptionTextarea.value = correctDescription;
+                const contentIdeaSelect = document.getElementById('content_idea_id');
+                if (contentIdeaSelect && contentIdeaSelect.value !== correctContentIdeaId) contentIdeaSelect.value = correctContentIdeaId;
+            }
+            forceCorrectValues();
+            setTimeout(forceCorrectValues, 50);
+            setTimeout(forceCorrectValues, 200);
+            setTimeout(forceCorrectValues, 500);
             
             // Character counter for description
             if (descriptionTextarea && charCount) {

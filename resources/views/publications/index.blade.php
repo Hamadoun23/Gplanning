@@ -147,6 +147,33 @@
             </div>
         </div>
     </div>
+
+    <!-- Modal pour gérer les événements d'une date -->
+    <div id="dateModal" class="date-modal" style="display: none;">
+        <div class="date-modal-overlay" onclick="closeDateModal()"></div>
+        <div class="date-modal-content">
+            <div class="date-modal-header">
+                <h3 id="modalDateTitle">Événements du <span id="modalDateText"></span></h3>
+                <button class="date-modal-close" onclick="closeDateModal()">×</button>
+            </div>
+            <div class="date-modal-body">
+                <div id="modalLoading" class="modal-loading" style="text-align: center; padding: 2rem;">
+                    <p>Chargement...</p>
+                </div>
+                <div id="modalContent" style="display: none;">
+                    <div class="modal-section">
+                        <h4>📢 Publications</h4>
+                        <div id="publicationsList" class="events-list"></div>
+                        @if(!$isTeamReadOnly)
+                            <a href="{{ route('publications.create') }}" id="addPublicationLink" class="btn btn-primary modal-add-btn" style="margin-top: 0.5rem; display: inline-block; text-decoration: none;">
+                                + Ajouter une publication
+                            </a>
+                        @endif
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
     
     <style>
         .calendar-select-wrapper {
@@ -421,6 +448,41 @@
                 width: 100%;
             }
         }
+
+        .date-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 10000; display: flex; align-items: center; justify-content: center; }
+        .date-modal-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); backdrop-filter: blur(2px); z-index: 10000; }
+        .date-modal-content { position: relative; background: white; border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); max-width: 800px; width: 90%; max-height: 90vh; display: flex; flex-direction: column; z-index: 10001; animation: modalSlideIn 0.3s ease-out; }
+        @keyframes modalSlideIn { from { opacity: 0; transform: translateY(-20px) scale(0.95); } to { opacity: 1; transform: translateY(0) scale(1); } }
+        .date-modal-header { display: flex; justify-content: space-between; align-items: center; padding: 1.5rem; border-bottom: 2px solid #f0f0f0; }
+        .date-modal-header h3 { margin: 0; color: #303030; font-size: 1.5rem; }
+        .date-modal-close { background: none; border: none; font-size: 2rem; line-height: 1; cursor: pointer; color: #999; padding: 0; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 50%; transition: all 0.2s; }
+        .date-modal-close:hover { background: #f0f0f0; color: #303030; }
+        .date-modal-body { padding: 1.5rem; overflow-y: auto; flex: 1; }
+        .modal-section { margin-bottom: 2rem; }
+        .modal-section:last-child { margin-bottom: 0; }
+        .modal-section h4 { margin: 0 0 1rem 0; color: #303030; font-size: 1.25rem; padding-bottom: 0.5rem; border-bottom: 2px solid #f0f0f0; }
+        .events-list { display: flex; flex-direction: column; gap: 0.75rem; }
+        .event-item { background: #f8f9fa; border: 1px solid #e0e0e0; border-radius: 8px; padding: 1rem; display: flex; justify-content: space-between; align-items: center; transition: all 0.2s; }
+        .event-item:hover { background: #f0f0f0; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .event-item-info { flex: 1; }
+        .event-item-title { font-weight: 600; color: #303030; margin-bottom: 0.25rem; }
+        .event-item-details { font-size: 0.875rem; color: #666; }
+        .event-item-actions { display: flex; gap: 0.5rem; }
+        .event-item-actions .btn { padding: 0.375rem 0.75rem; font-size: 0.85rem; white-space: nowrap; }
+        .event-status-badge { display: inline-block; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: 600; margin-left: 0.5rem; }
+        .status-pending { background: #fff3cd; color: #856404; }
+        .status-completed { background: #d4edda; color: #155724; }
+        .status-cancelled { background: #f8d7da; color: #721c24; }
+        .status-info { background: #d1ecf1; color: #0c5460; }
+        .status-overdue { background: #f8d7da; color: #721c24; }
+        .status-upcoming { background: #fff3cd; color: #856404; }
+        .modal-loading { color: #666; }
+        .empty-events { text-align: center; padding: 2rem; color: #999; font-style: italic; }
+        .modal-add-btn { cursor: pointer !important; pointer-events: auto !important; z-index: 10002 !important; position: relative; text-decoration: none !important; }
+        .modal-add-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.15); background-color: #e55a2a !important; }
+        .calendar-day-add-btn { opacity: 0; transition: opacity 0.2s; }
+        .calendar-day-cell:hover .calendar-day-add-btn { opacity: 1; }
+        .calendar-day-add-btn:hover { opacity: 1 !important; background: #e55a2a !important; transform: scale(1.1); }
     </style>
     
     <script>
@@ -544,6 +606,9 @@
                         yearSelect.setAttribute('data-initial-year', finalYear.toString());
                     }
                     
+                    // Réinitialiser les événements de clic sur les cellules
+                    initCalendarCellEvents();
+
                     // Réappliquer le filtre client si actif
                     const clientFilter = document.getElementById('client_filter');
                     if (clientFilter && clientFilter.value !== 'all') {
@@ -707,9 +772,131 @@
             });
         }
         
+        const isTeamReadOnly = {{ $isTeamReadOnly ? 'true' : 'false' }};
+
+        function openDateModal(date) {
+            const modal = document.getElementById('dateModal');
+            const modalDateText = document.getElementById('modalDateText');
+            const modalLoading = document.getElementById('modalLoading');
+            const modalContent = document.getElementById('modalContent');
+            
+            const dateObj = new Date(date + 'T00:00:00');
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            modalDateText.textContent = dateObj.toLocaleDateString('fr-FR', options);
+            
+            modal.style.display = 'flex';
+            modalLoading.style.display = 'block';
+            modalContent.style.display = 'none';
+            
+            fetch(`/api/events-by-date?date=${date}`, {
+                headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
+            })
+                .then(response => response.json())
+                .then(data => {
+                    modalLoading.style.display = 'none';
+                    modalContent.style.display = 'block';
+                    displayPublications(data.publications, date);
+                })
+                .catch(error => {
+                    console.error('Erreur:', error);
+                    modalLoading.innerHTML = '<p style="color: #dc3545;">Erreur lors du chargement</p>';
+                });
+        }
+
+        function closeDateModal() {
+            document.getElementById('dateModal').style.display = 'none';
+        }
+
+        function displayPublications(publications, date) {
+            const container = document.getElementById('publicationsList');
+            const addLink = document.getElementById('addPublicationLink');
+            if (addLink) {
+                const baseUrl = addLink.getAttribute('href').split('?')[0];
+                addLink.href = `${baseUrl}?date=${encodeURIComponent(date)}&return_month=${currentMonth}&return_year=${currentYear}`;
+            }
+            
+            if (publications.length === 0) {
+                container.innerHTML = '<div class="empty-events">Aucune publication prévue</div>';
+                return;
+            }
+            
+            container.innerHTML = publications.map(publication => {
+                let statusClass = 'status-pending', statusText = 'En attente';
+                if (publication.status === 'completed') { statusClass = 'status-completed'; statusText = 'Complétée'; }
+                else if (publication.status === 'not_realized') { statusClass = 'status-cancelled'; statusText = 'Non réalisée'; }
+                else if (publication.status === 'cancelled') { statusClass = 'status-cancelled'; statusText = 'Annulée'; }
+                else if (publication.status === 'rescheduled') { statusClass = 'status-info'; statusText = 'Reprogrammée'; }
+                else if (publication.is_overdue) { statusClass = 'status-overdue'; statusText = 'En retard'; }
+                else if (publication.is_upcoming) { statusClass = 'status-upcoming'; statusText = 'À venir'; }
+                
+                const actionButtons = isTeamReadOnly
+                    ? `<a href="${publication.url}" class="btn btn-primary">Voir</a>`
+                    : `<a href="${publication.url}" class="btn btn-primary">Voir</a>
+                       <a href="${publication.edit_url}" class="btn btn-secondary">Modifier</a>
+                       <button onclick="deleteEvent('publication', ${publication.id}, '${publication.client_name}')" class="btn btn-danger">Supprimer</button>`;
+
+                return `
+                    <div class="event-item">
+                        <div class="event-item-info">
+                            <div class="event-item-title">
+                                📢 ${publication.client_name}
+                                <span class="event-status-badge ${statusClass}">${statusText}</span>
+                            </div>
+                            <div class="event-item-details">${publication.content_idea_titre || 'Aucune idée de contenu'}${publication.description ? ' • ' + publication.description.substring(0, 50) : ''}</div>
+                        </div>
+                        <div class="event-item-actions">${actionButtons}</div>
+                    </div>`;
+            }).join('');
+        }
+
+        function deleteEvent(type, id, name) {
+            if (!confirm(`Êtes-vous sûr de vouloir supprimer cette publication pour ${name} ?`)) return;
+            
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = `/publications/${id}`;
+            
+            const methodInput = document.createElement('input');
+            methodInput.type = 'hidden'; methodInput.name = '_method'; methodInput.value = 'DELETE';
+            form.appendChild(methodInput);
+            
+            const csrfInput = document.createElement('input');
+            csrfInput.type = 'hidden'; csrfInput.name = '_token';
+            csrfInput.value = document.querySelector('meta[name="csrf-token"]').content;
+            form.appendChild(csrfInput);
+            
+            const monthInput = document.createElement('input');
+            monthInput.type = 'hidden'; monthInput.name = 'return_month'; monthInput.value = currentMonth;
+            form.appendChild(monthInput);
+            
+            const yearInput = document.createElement('input');
+            yearInput.type = 'hidden'; yearInput.name = 'return_year'; yearInput.value = currentYear;
+            form.appendChild(yearInput);
+            
+            document.body.appendChild(form);
+            form.submit();
+        }
+
+        function initCalendarCellEvents() {
+            document.querySelectorAll('.calendar-day-cell').forEach(cell => {
+                const newCell = cell.cloneNode(true);
+                cell.parentNode.replaceChild(newCell, cell);
+                newCell.addEventListener('click', function(e) {
+                    if (e.target.closest('.calendar-event') || e.target.closest('.calendar-day-add-btn')) return;
+                    const date = this.getAttribute('data-date');
+                    if (date) openDateModal(date);
+                });
+            });
+        }
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') closeDateModal();
+        });
+
         document.addEventListener('DOMContentLoaded', function() {
             initClientCombobox();
             syncInitialValues();
+            initCalendarCellEvents();
             
             const monthSelect = document.getElementById('month');
             const yearSelect = document.getElementById('year');

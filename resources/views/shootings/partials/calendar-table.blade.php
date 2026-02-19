@@ -30,7 +30,7 @@
                                 <span class="badge badge-warning" style="font-size: 0.7rem;">⚠️</span>
                             @endif
                             @if(isset($isTeamReadOnly) && !$isTeamReadOnly)
-                                <a href="{{ route('shootings.create', ['date' => $day['date']->format('Y-m-d')]) }}" class="calendar-day-add-btn" onclick="event.stopPropagation();" title="Ajouter un tournage" style="margin-left: auto; background: #FF6A3A; color: white; border: none; border-radius: 50%; width: 24px; height: 24px; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; opacity: 0.7; transition: opacity 0.2s; text-decoration: none;">+</a>
+                                <button class="calendar-day-add-btn" onclick="event.stopPropagation(); openDateModal('{{ $day['date']->format('Y-m-d') }}');" title="Gérer les événements" style="margin-left: auto; background: #FF6A3A; color: white; border: none; border-radius: 50%; width: 24px; height: 24px; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; opacity: 0.7; transition: opacity 0.2s;">+</button>
                             @endif
                         </div>
                         <div class="calendar-day-events" style="max-height: 110px; overflow-y: auto;" onclick="event.stopPropagation();">

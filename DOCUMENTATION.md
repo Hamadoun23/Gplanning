@@ -167,9 +167,16 @@ $clientUsers = [
 
 **Comportement :**
 - Si l'utilisateur n'est pas authentifié → redirection vers login
-- Si l'utilisateur n'est pas admin → erreur 403 (Accès interdit)
+- Si l'utilisateur n'est pas admin → déconnexion + redirection vers login (plus de 403)
 
-#### 2. `EnsureClientAccess` (`app/Http/Middleware/EnsureClientAccess.php`)
+#### 2. `EnsureAdminOrTeam` (`app/Http/Middleware/EnsureAdminOrTeam.php`)
+
+**Rôle :** Vérifie que l'utilisateur est admin ou team
+
+**Comportement :**
+- Si l'utilisateur n'est ni admin ni team → déconnexion + redirection vers login (plus de 403)
+
+#### 3. `EnsureClientAccess` (`app/Http/Middleware/EnsureClientAccess.php`)
 
 **Rôle :** Vérifie que les clients n'accèdent qu'à leur propre espace
 
@@ -178,7 +185,15 @@ $clientUsers = [
 **Comportement :**
 - Les admins ont accès à tous les espaces clients
 - Les clients ne peuvent accéder qu'à leur propre `client_id`
-- Si un client tente d'accéder à un autre client → erreur 403
+- Si un client tente d'accéder à un autre client → déconnexion + redirection vers login (plus de 403)
+
+#### 4. `RedirectIfAuthenticated` (`app/Http/Middleware/RedirectIfAuthenticated.php`)
+
+**Rôle :** Redirige les utilisateurs authentifiés qui accèdent aux pages "guest" (login)
+
+**Comportement :**
+- Admin/Team → redirection vers `/dashboard`
+- Client → déconnexion automatique + affichage de la page login (pas de redirection vers dashboard)
 
 ### Redirection après connexion
 
@@ -676,16 +691,18 @@ Layout principal de l'application avec :
 - **`show.blade.php`** : Détails d'une idée
 
 #### Tournages (`resources/views/shootings/`)
-- **`index.blade.php`** : Calendrier mensuel avec navigation
-- **`create.blade.php`** : Formulaire avec vérification en temps réel des conflits, **liste déroulante moderne pour sélectionner une seule idée de contenu**
-- **`edit.blade.php`** : Formulaire d'édition avec **liste déroulante moderne pour sélectionner une seule idée de contenu**
+- **`index.blade.php`** : Calendrier mensuel avec navigation, **modale interactive** (clic jour/"+"), filtrage client, suppression depuis la modale
+- **`create.blade.php`** : Formulaire avec vérification en temps réel des conflits, **liste déroulante moderne pour sélectionner une seule idée de contenu**, `autocomplete="one-time-code"` + forçage JS
+- **`edit.blade.php`** : Formulaire d'édition avec **liste déroulante moderne**, `autocomplete="one-time-code"` + forçage JS des valeurs DB
 - **`show.blade.php`** : Détails avec alertes, actions (compléter, échec, reprogrammer)
+- **`partials/calendar-table.blade.php`** : Rendu des événements du calendrier avec `data-client-id` et bouton "+" ouvrant la modale
 
 #### Publications (`resources/views/publications/`)
-- **`index.blade.php`** : Calendrier mensuel avec navigation
-- **`create.blade.php`** : Formulaire avec tournages disponibles filtrés
-- **`edit.blade.php`** : Formulaire d'édition
+- **`index.blade.php`** : Calendrier mensuel avec navigation, **modale interactive** (clic jour/"+"), filtrage client, suppression depuis la modale
+- **`create.blade.php`** : Formulaire avec tournages disponibles filtrés, `autocomplete="one-time-code"` + forçage JS
+- **`edit.blade.php`** : Formulaire d'édition, `autocomplete="one-time-code"` + forçage JS des valeurs DB
 - **`show.blade.php`** : Détails avec alertes, actions (compléter, échec, reprogrammer)
+- **`partials/calendar-table.blade.php`** : Rendu des événements du calendrier avec `data-client-id` et bouton "+" ouvrant la modale
 
 #### Dashboard (`resources/views/dashboard.blade.php`)
 - Calendrier combiné (tournages + publications)
@@ -835,6 +852,33 @@ GET  /api/check-date               → Vérifie les conflits et avertissements p
 }
 ```
 
+#### Événements par date
+```php
+GET  /api/events-by-date           → Retourne les tournages et publications d'une date
+```
+
+**Paramètres :**
+- `date` : Date au format Y-m-d (requis)
+
+**Réponse JSON :**
+```json
+{
+  "date": "2026-02-13",
+  "shootings": [
+    {
+      "id": 1, "client_id": 2, "client_name": "Gda",
+      "date": "2026-02-13", "status": "pending",
+      "description": "...", "content_ideas": [...],
+      "is_overdue": false, "is_upcoming": true,
+      "url": "/shootings/1", "edit_url": "/shootings/1/edit"
+    }
+  ],
+  "publications": [...]
+}
+```
+
+**Utilisé par :** les modales des calendriers dashboard, tournages et publications
+
 #### Détails d'un tournage
 ```php
 GET  /api/shootings/{shooting}     → Retourne les détails JSON d'un tournage
@@ -882,17 +926,20 @@ GET  /api/client-event-details     → Retourne les détails d'un événement sp
 ### 3. Gestion des tournages
 
 - Calendrier mensuel avec navigation
+- **Modale interactive** : clic sur un jour ou "+" ouvre une modale avec les événements (Voir/Modifier/Supprimer/Ajouter)
 - Création avec sélection de client, date, et **une seule idée de contenu** (liste déroulante moderne)
 - Vérification en temps réel des conflits de dates
 - Statuts : pending, completed, cancelled
 - Actions : marquer comme complété, échec, reprogrammer
 - Description optionnelle
 - Export Excel du calendrier
-- **Modification :** Un tournage est maintenant lié à une seule idée de contenu (au lieu de plusieurs)
+- Filtrage par client (individuel sur chaque événement)
+- Autocomplete navigateur désactivé sur les formulaires
 
 ### 4. Gestion des publications
 
 - Calendrier mensuel avec navigation
+- **Modale interactive** : clic sur un jour ou "+" ouvre une modale avec les événements (Voir/Modifier/Supprimer/Ajouter)
 - Création avec sélection de client, date, idée de contenu
 - Liaison optionnelle avec un tournage (seulement les tournages disponibles)
 - Vérification en temps réel des conflits et avertissements
@@ -901,6 +948,8 @@ GET  /api/client-event-details     → Retourne les détails d'un événement sp
 - Actions : marquer comme complétée, échec, reprogrammer
 - Description optionnelle
 - Export Excel du calendrier
+- Filtrage par client (individuel sur chaque événement)
+- Autocomplete navigateur désactivé sur les formulaires
 
 ### 5. Règles de publication
 
@@ -1356,9 +1405,71 @@ Pour toute question ou problème, consulter :
 
 ---
 
-**Dernière mise à jour :** Mercredi 4 février 2026  
-**Version :** 1.1  
+**Dernière mise à jour :** Vendredi 13 février 2026  
+**Version :** 1.2  
 **Développé pour :** Gda Com
+
+---
+
+## Changelog v1.2 (Vendredi 13 février 2026)
+
+### Nouvelles fonctionnalités
+
+1. **Modales interactives sur les calendriers Tournages et Publications (admin + team)**
+   - Clic sur un jour → ouvre une modale avec les événements du jour (comme le dashboard)
+   - Bouton "+" → ouvre la même modale (au lieu de rediriger vers la page de création)
+   - Modale affiche : Voir / Modifier / Supprimer / Ajouter (admin) ou Voir seul (team)
+   - Chargement des données via l'API `/api/events-by-date`
+   - Animation d'ouverture, fermeture avec Echap ou clic sur l'overlay
+   - Réinitialisation des événements de clic après chaque mise à jour AJAX du calendrier
+   - Fichiers modifiés :
+     - `shootings/index.blade.php`, `publications/index.blade.php`
+     - `team/shootings/index.blade.php`, `team/publications/index.blade.php`
+     - `shootings/partials/calendar-table.blade.php`, `publications/partials/calendar-table.blade.php`
+
+2. **Légende du calendrier client**
+   - Ajout d'une légende sous le calendrier du dashboard client (`/clients/{id}/dashboard`)
+   - Style identique à la légende de la vue admin
+   - Couleurs : tournage (orange), publication (vert), approche (jaune), en retard (rouge), complété (vert), annulé (gris)
+
+3. **Bouton "Retour au tableau de bord" repositionné**
+   - Déplacé du bas vers le haut de la page dans les vues détail client
+   - Couleur changée de blanc à rouge (#dc3545)
+   - Fichiers : `client-space/publications/show.blade.php`, `client-space/shootings/show.blade.php`
+
+### Corrections de bugs
+
+1. **Bouton de confirmation grisé dans les modales de changement de statut**
+   - Le bouton "Confirmer" restait désactivé après saisie de la description pour les statuts "annulé" / "non réalisé"
+   - Cause : champ `required` sur `reschedule_date` caché + loader JS non réinitialisé
+   - Fix : attribut `required` dynamique via JS + réinitialisation du bouton submit à l'ouverture de la modale
+   - Fichiers : `shootings/show.blade.php`, `publications/show.blade.php` (admin + team)
+
+2. **Filtre client dans les calendriers publication et tournage**
+   - La sélection d'un client affichait tous les événements au lieu de filtrer
+   - Cause : le filtre ciblait les cellules `<td>` au lieu des événements individuels `.calendar-event`
+   - Fix : ajout de `data-client-id` sur chaque `.calendar-event` + refactoring de `filterByClient()`
+   - Fichiers : `publications/partials/calendar-table.blade.php`, `shootings/partials/calendar-table.blade.php`, et les 4 fichiers index
+
+3. **Erreur 403 pour les clients**
+   - Un client connecté qui accédait à `/login` (retour arrière, actualisation) était redirigé vers `/dashboard` avec une erreur "403 Accès réservé aux administrateurs"
+   - Fix : le client est automatiquement déconnecté et reste sur la page login
+   - Middlewares modifiés : `RedirectIfAuthenticated`, `EnsureAdminOrTeam`, `EnsureAdmin`, `EnsureTeamReadOnly`, `EnsureClientAccess`
+   - Les clients ne voient plus jamais de page 403
+
+4. **Autocomplete navigateur sur les formulaires de création/modification**
+   - Le navigateur pré-remplissait les champs avec d'anciennes données
+   - Fix : `autocomplete="one-time-code"` sur tous les formulaires et champs (les navigateurs modernes ignorent `"off"`)
+   - Fix : JavaScript force les valeurs correctes du serveur à 3 reprises (0ms, 50ms, 200ms) pour contrer l'autocomplete
+   - Création : formulaire arrive vide (sauf paramètres URL)
+   - Modification : valeurs forcées depuis la base de données
+   - Fichiers : `publications/create.blade.php`, `publications/edit.blade.php`, `shootings/create.blade.php`, `shootings/edit.blade.php`
+
+### Détails techniques
+
+- **API utilisée par les modales** : `GET /api/events-by-date?date=YYYY-MM-DD` (déjà existante, utilisée par le dashboard)
+- **Stratégie anti-autocomplete** : `autocomplete="one-time-code"` + forçage JS multi-timeout
+- **Middlewares de sécurité** : tous les middlewares vérifiant les rôles déconnectent désormais les clients non autorisés au lieu d'afficher un 403
 
 ---
 
