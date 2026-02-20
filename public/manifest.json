@@ -1,7 +1,7 @@
 {
-  "name": "Planning Gda - Gda Com",
-  "short_name": "Planning Gda",
-  "description": "Application de gestion de planning pour Gda Com",
+  "name": "GDA MEDIA",
+  "short_name": "GDA MEDIA",
+  "description": "Application de gestion de planning - GDA MEDIA PLANNING",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
